@@ -1,0 +1,17 @@
+{
+  "name": "team-ops",
+  "private": true,
+  "version": "0.1.0",
+  "description": "0g-agentic-team lead \u5de5\u5177\u94fe\uff1aviem Account \u6865 TEE sign socket + AgenticID SDK",
+  "scripts": {
+    "bridge:test": "node test-bridge.js",
+    "init": "node team-init.js",
+    "ack": "node do-ack.js",
+    "balance": "node probe-balance.js",
+    "deploy:backend1": "node deploy-backend1.js"
+  },
+  "dependencies": {
+    "@0gfoundation/0g-agenticid-sdk": "^0.1.4",
+    "viem": "^2.56.3"
+  }
+}
