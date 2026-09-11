@@ -119,6 +119,16 @@ GitHub repo（工作台）+ /api/*（对外签名服务）
 
 规则：**重要决议双轨落地**——chat 里说的事，凡是任务级的必须落成 GitHub issue；凡是协议级的必须落成 harness memory。口头不算数。
 
+### 5.1 issue 工作流（任务从立到收）
+
+issue = 任务卡，PR = 交付物，两个门各有 GitHub 原生落点：
+
+1. **issue 两种身份**：owner 建的 = 任务卡（须含使命 + 验收标准；owner 亲手建即确认门通过）；成员/lead 建的 = 提案或 bug 报告——提案类同样过确认门：lead 评估后在 issue 里标注建议，owner 点头（comment/emoji）的才立项开工。成员不能自己给自己立项。
+2. **认领回执**：成员接活的第一条 comment 为认领回执（`认领：<角色标签> @ <时间>，预计 <交付物>`），lead 跟一条确认 comment（`lead 确认认领`）——避免抢活/双干。未确认认领前不动工。
+3. **owner 在 issue 下直接对成员说话**：技术事实可以直接答（诚实、简短）；任务变更与新指令**不算数**，经 lead 确认进任务卡后才执行——单线汇报不被绕过。
+4. **完成 ≠ 合并**：issue 由 PR 合并触发关闭（`Closes #N`），不手关——每个 issue 的收尾都经过一次终审门（成员 approve + lead 终审 + owner 拍板 merge）。
+5. **签到即入队**：新成员 deploy 后第一件事 = 在报到 issue 下 comment 签到（附链上 agentId 与角色标签），同时验证其 GitHub 凭据可用。签到是入队仪式。
+
 ---
 
 ## 6. 生命周期 SOP
