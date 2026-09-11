@@ -18,7 +18,7 @@ members:
     framework: prime-agent
     inference: 0g-compute/glm-5.3
     seed: docs/seeds/backend-1.md
-    status: pending-deploy   # prepaid ≥0.1 OG 后 mint-only deploy（scripts/team-ops/deploy-backend1.js）
-    joined: "—"              # deploy 成功后填日期
-    identity: "deploy 产出后存 sealed harness（不入 repo）"
-    notes: "工具链 v0.2：TEE 签名桥/trust-root ack/provider 余额 API 已全部验证通过"
+    status: minted       # 链上身份已铸造（offline，start() 前不产生 runtime 费用）
+    joined: "2026-09-11"
+    identity: "sealed harness（不入 repo）"
+    notes: "工具链 v0.2；TEE 桥/ack/provider API 已验证；mint tx 见 PR"
