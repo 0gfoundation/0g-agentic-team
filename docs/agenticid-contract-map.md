@@ -15,7 +15,7 @@
 
 ## 已解析函数（46/62，openchain 签名库）
 
-### Agent 注册 / ERC-721 主体
+### Agent 注册 / ERC-7857 主体（兼容 ERC-721 接口）
 | selector | 函数 | 说明 |
 |---|---|---|
 | 0x1aa3a008 | `register()` | 无参注册 |
@@ -25,7 +25,7 @@
 | 0x70a08231 | `balanceOf(address)` | 持有数 |
 | 0x23b872dd / 0x42842e0e / 0xb88d4fde | `transferFrom` / `safeTransferFrom` ×2 | 转让 |
 | 0x06fdde03 / 0x95d89b41 / 0xc87b56dd | `name` / `symbol` / `tokenURI` | 元数据 |
-| 0x150b7a02 | `onERC721Received` | 接收回调 |
+| 0x150b7a02 | `onERC721Received` | 接收回调（7857 兼容 721 接口） |
 | 0x095ea7b3 / 0x081812fc / 0xa22cb465 / 0xe985e9c5 | approve 系 | 授权 |
 
 ### iData / 元数据锚定
@@ -88,7 +88,7 @@
 | VerifiedFeedback | 0x666391a61f3980bf942ce8c3cc8dfd7f2f7b2f4c |
 | CloneGate | 0x1d33086b367a9df4b4f4d7a29b35fc1187380303 |
 
-定价（services() 实读）：CPU 0.001 OG/min · 内存 0.0005 OG/GB/min · 创建费 0.01 OG
+定价（services() 实读）：CPU 0.001 OG/min · 内存 0.0005 OG/GB/min · 创建费 0.01 OG；标准档位 2CPU+4GB → 0.004 OG/min
 
 ## 逆向方法备忘
 

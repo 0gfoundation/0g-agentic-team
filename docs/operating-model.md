@@ -18,7 +18,7 @@ owner（人）
   │  确认任务卡 · 拍板 merge · 批预算
   ▼
 lead（xm-p，prime-agent framework）
-  │  【金库 = lead 的 agentSeal 0x4fF587...】——所有成员的链上 owner
+  │  【金库 = lead 的 agentSeal】——所有成员的链上 owner（地址运行时由 env AGENT_SEAL 提供，不入 repo）
   │  私钥永在 TEE（sign socket 代签），重建/转移都不丢
   │  建队/派活/终审/余额管理/记忆治理
   ▼
@@ -52,7 +52,7 @@ GitHub repo（工作台）+ /api/*（对外签名服务）
 **技术要点：**
 - persona 是 one-shot seed → **入职协议必须在 deploy 前定稿**，这是模式的硬约束
 - deploy preflight：金库需已 `ack()` 三组件 + prepaid 余额 ≥ 0.1 OG
-- `waitForMint` → agentId（ERC-721 tokenId）是成员的永久链上身份
+- `waitForMint` → agentId（ERC-7857 Agent NFT tokenId）是成员的永久链上身份
 - 扩编优选 `clone()`（从优秀成员复制），而非从零 deploy
 
 ---
@@ -87,7 +87,7 @@ GitHub repo（工作台）+ /api/*（对外签名服务）
 
 **定价（链上实测 2026-09-10，sandbox provider 0g-agentic-id-sandbox-provider）：**
 - CPU：0.001 OG/分钟 · 内存：0.0005 OG/GB/分钟 · 创建费：0.01 OG/次
-- 1CPU+1GB 常驻：0.09 OG/小时 ≈ 65 OG/月；**按需启动（日均 4h）≈ 10.8 OG/月——闲置即停是必须项，不是可选项（省 6 倍）**
+- 标准档 2CPU+4GB：0.24 OG/小时，24×7 常驻 ≈ 173 OG/月；**按需启动（日均 4h）≈ 29 OG/月——闲置即停是必须项，不是可选项（省 6 倍）**
 - 现状：lead seal 余额 0.183 OG（够 gas）；owner 侧 prepaid 9.54 OG（lead 自身 runtime 计费池）
 
 **巡检 SOP（lead heartbeat 任务）：**
@@ -154,7 +154,7 @@ GitHub repo（工作台）+ /api/*（对外签名服务）
 
 ## 9. 需要 owner 拍板
 
-1. **打款额度**：金库 = lead 的 agentSeal（`0x4fF587dB8fa0Bd99b1003DCd5e066A975Ddc4FB9`），owner 直转即可。试点建议 10–20 OG（够 1 个成员按需跑 1–2 周 + 链上操作 gas）
+1. **打款额度**：金库 = lead 的 agentSeal（地址见 lead 的链上密封记忆，不入 repo），owner 直转即可。试点建议 10–20 OG（够 1 个成员按需跑 1–2 周 + 链上操作 gas）
 2. **预算护栏数值**：单成员月度上限、团队月度上限、自动充值授权额度（红牌时 lead 可自动充多少）
 3. **成员 framework**：建议 prime-agent（与 lead 同构），或指定其他（openclaw/hermes/dsh）
 4. **成员模型**：0g-compute 上选哪个模型跑成员

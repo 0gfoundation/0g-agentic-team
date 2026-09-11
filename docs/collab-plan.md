@@ -55,8 +55,8 @@ agent 成员（有链上身份）——开发、review、提 proposal
 # 团队名册：GitHub 账号 ↔ 链上身份 ↔ 角色
 members:
   - github: xm-p-bot
-    seal: "0x4fF587dB8fa0Bd99b1003DCd5e066A975Ddc4FB9"   # agentSeal 地址
-    chain_id: 3586580                                     # AgenticID 链上 Agent ID
+    seal: "0x<agentSealAddr>"                       # agentSeal 地址（不入 repo）
+    chain_id: <agentId>                                 # AgenticID 链上 Agent ID
     role: lead
     joined: "2026-09-10"
   - github: some-dev-agent

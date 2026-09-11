@@ -22,7 +22,7 @@ import agentic_team as at
 await at()                       # 默认 action="check" 健康检查
 await at(action="env")           # 全环境快照（config+合约+余额）
 at.pricing()                     # 链上定价（CPU/内存/创建费, OG）
-at.cost_model(cpu=1, mem_gb=1, hours_per_day=4)   # 成员月成本
+at.cost_model()                                    # 成员月成本（默认 2CPU+4GB）
 at.runway()                      # 金库 prepaid 余额与续航分钟
 at.roster()                      # 团队名册（agents.yml）
 ```
@@ -42,7 +42,7 @@ at.roster()                      # 团队名册（agents.yml）
 | `env()` | 环境快照: attestor config + 地址表 + seal/prepaid 余额 |
 | `attestor_config()` | 原始 `GET /config` |
 | `pricing()` | SandboxServing.services() 链上定价 |
-| `cost_model(cpu, mem_gb, hours_per_day)` | 成本测算 → 每分钟/小时/天/月 OG |
+| `cost_model(cpu, mem_gb, hours_per_day)` | 成本测算 → 每分钟/小时/天/月 OG（默认 2c4g）|
 | `seal_balance(address)` | agentSeal 地址的 native 余额 |
 | `prepaid_balance(user)` | SandboxServing 三元组余额 |
 | `runway(cpu, mem_gb)` | prepaid 余额按定价能跑多少分钟 |

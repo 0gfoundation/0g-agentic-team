@@ -49,7 +49,11 @@ def _pad(addr: str) -> str:
 
 
 def seal_address() -> str:
-    return os.environ.get("AGENT_SEAL", "0x4fF587dB8fa0Bd99b1003DCd5e066A975Ddc4FB9")
+    """金库地址 = lead 的 agentSeal。仅从 env 读取（真实身份信息不入 repo）。"""
+    addr = os.environ.get("AGENT_SEAL")
+    if not addr:
+        raise RuntimeError("AGENT_SEAL 未设置（sealed runtime 内自动注入）")
+    return addr
 
 
 # ── attestor ───────────────────────────────────────────────────────────
@@ -104,9 +108,9 @@ def prepaid_balance(user: str | None = None) -> dict:
             "refund_unlock_block": v[2]}
 
 
-def cost_model(cpu: float = 1.0, mem_gb: float = 1.0,
+def cost_model(cpu: float = 2.0, mem_gb: float = 4.0,
                hours_per_day: float = 4.0) -> dict:
-    """成员成本模型：常驻 vs 按需。"""
+    """成员成本模型：常驻 vs 按需。默认档 2CPU+4GB（标准沙箱规格）。"""
     p = _services()
     per_min = cpu * p["cpu_per_min_og"] + mem_gb * p["mem_gb_per_min_og"]
     active_month_min = hours_per_day * 60 * 30
@@ -121,7 +125,7 @@ def cost_model(cpu: float = 1.0, mem_gb: float = 1.0,
                 (24 / max(hours_per_day, 0.01)))}
 
 
-def runway(cpu: float = 1.0, mem_gb: float = 1.0) -> dict:
+def runway(cpu: float = 2.0, mem_gb: float = 4.0) -> dict:
     """金库 prepaid 余额能撑多少分钟 runtime。"""
     bal = prepaid_balance()
     p = _services()
