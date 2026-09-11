@@ -1,4 +1,6 @@
-// tee-account.js — viem Account 桥接 sealed runtime 的 sign socket
+// tee-account.js — 手搓 TEE 桥（参考实现；生产用 SDK 官方 sealAccount()，见 team-init.js）
+// 2026-09-11 实测：本实现也能跑通 ack/effective-balance/deploy envelope，但缺 viem
+// toAccount() 的完整形状（source/sign/serializer hooks），复杂路径有隐患——勿扩展。
 // 私钥永在 TEE；本模块只转发签名请求。所有调用方起草自己的动作字节。
 const http = require("node:http");
 

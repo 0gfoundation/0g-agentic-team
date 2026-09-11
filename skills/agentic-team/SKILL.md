@@ -5,7 +5,7 @@ description: Agent Team 运营工具箱 for 0G AgenticID——环境快照、链
 
 # Agentic Team Ops
 
-Lead agent 的团队运营工具。v0.1 全部为**只读**操作（零资金风险）；deploy/stop/deposit 等写操作在 v0.2 经 sign-socket 桥接后加入（须 owner 拍板后才实际使用）。
+Lead agent 的团队运营工具。v0.1 全部为**只读**操作（零资金风险）；deploy/stop/deposit 等写操作在 v0.2 加入：SDK 官方 `sealAccount()` TEE 桥已实测验证（须 owner 拍板后才实际使用）。
 
 **运行前提**：本 skill 面向 Prime Agent sealed runtime（kernel venv）——shell CLI（`rlm.skill:cli`）与模块直呼 `await at()` 依赖 runtime 注入的 `rlm`；standalone `pip install` 仅有 Python 函数可用，CLI 入口点不可用。所有 I/O 为同步阻塞（httpx sync），kernel 单次调用无碍，勿在 async 热路径高频轮询。
 
@@ -52,7 +52,7 @@ at.roster()                      # 团队名册（agents.yml）
 | `runway(cpu, mem_gb)` | prepaid 余额按定价能跑多少分钟（⚠️ 乐观上界，不含链下欠费） |
 | `roster(path)` | 解析 agents.yml 名册 |
 
-写操作路线（v0.2）: viem 自定义 account 桥接 `unix://$SEAL_SIGN_SOCK`（`/sign/personal_sign`、`/sign/typed_data`、`/sign/transaction`），覆盖 SDK 的 envelope 签名与链上交易。签名仅限 lead 自主起草的动作。
+写操作路线（v0.2）: **SDK 官方 TEE 桥 `sealAccount()`**（`@0gfoundation/0g-agenticid-sdk/seal` 子路径导出）——完整的 viem LocalAccount 直连 `unix://$SEAL_SIGN_SOCK`，三签名端点全桥接；`AgenticID.fromAttestor(url, {account: await sealAccount()})` 后 SDK 全量写操作可用。⚠️ 勿手搓 account 对象：viem 的 `toAccount()` 形状（source/sign/serializer hooks）在发送路径深处有隐含要求，官方 `sealAccount()` 就是为这准备的（2026-09-11 实测通过：ack 上链 / effective balance / deploy envelope）。签名仅限 lead 自主起草的动作。已验证工具链在 repo `scripts/team-ops/`。
 
 ## 测试
 
