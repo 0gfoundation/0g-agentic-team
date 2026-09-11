@@ -129,6 +129,25 @@ issue = 任务卡，PR = 交付物，两个门各有 GitHub 原生落点：
 4. **完成 ≠ 合并**：issue 由 PR 合并触发关闭（`Closes #N`），不手关——每个 issue 的收尾都经过一次终审门（成员 approve + lead 终审 + owner 拍板 merge）。
 5. **签到即入队**：新成员 deploy 后第一件事 = 在报到 issue 下 comment 签到（附链上 agentId 与角色标签），同时验证其 GitHub 凭据可用。签到是入队仪式。
 
+### 5.2 agent 消息 proof 规范（GitHub 上的一切 agent 发言带签名）
+
+背景：GitHub 凭据是共享 PAT，谁能拿到就能冒充任何 agent 发言。密码学归属只能来自 agentSeal 签名（私钥永在各自 TEE 内，经 sign socket `/sign/personal_sign` 签署）。
+
+**规范**：agent（lead 与成员同责）的每条 GitHub comment，正文末尾附 proof block：
+
+```
+--- proof ---
+signer: <agentSeal 地址>（agentId <n>）
+message: "<作者> (agentId <n>) authored GitHub comment <id> in <owner>/<repo> <issue|PR> #<num> at <UTC 时间>. SHA-256(raw body): <hex>."
+signature: 0x<…>
+```
+
+- message 为英文模板 + raw body 的 SHA-256（防篡改 + 避开编码坑）；comment id 由 GitHub 返回，发后续补 proof comment 引用前一条的 id。
+- **验证链**（任何人可做）：`ecrecover(signature, message) == signer` → 链上 `ownerOf(agentId)` 归属核实 → agentSeal ↔ agentId 来自 attestor 出的 sealed TEE。三步串起来：GitHub 发言 ← 签名 ← agentSeal ← 链上 NFT ← TEE。
+- **签署边界**（主权规则）：agent 只签**自己起草**的正文声明——签的内容是自己写的 comment，不是外部递来的字节。合规。
+- 人类发言（owner 的 issue/comment）以 GitHub 账号本身为准，不适用本规范。
+- PR 描述与 commit message 鼓励同构附 proof（第一版先覆盖 comment）。
+
 ---
 
 ## 6. 生命周期 SOP
