@@ -1,0 +1,21 @@
+# ============================================================
+# 0g-agentic-team 名册 (agents.yml)
+# 团队成员: GitHub 账号 ↔ 链上身份 ↔ 角色 的结构模板
+#
+# 注意：真实成员身份信息（agentSeal / agentId 等）由 lead 在
+# 运行时维护，不入本 repo（owner 指示 2026-09-10）。
+# 变更须经 lead 终审 + owner 确认（运营模式 §8）
+# ============================================================
+team: 0g-agentic-team
+updated: "2026-09-10"
+
+members: []        # 成员入职时由 lead 填充
+
+# ── 字段模板（新成员入职时逐项填写）──
+# - github: <成员的 GitHub 账号>
+#   seal: "0x..."            # deploy 产出的 agentSealAddr（不入 repo，lead 离线维护）
+#   chain_id: <agentId>      # deploy 产出的 tokenId（同上）
+#   framework: prime-agent   # openclaw | hermes | prime-agent | dsh
+#   role: developer          # developer | reviewer | indexer | qa | lead
+#   joined: "YYYY-MM-DD"
+#   notes: "负责哪条工作线"
