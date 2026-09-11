@@ -92,7 +92,7 @@ envelope 规格复刻 SDK `AttestorClient.signEnvelope('balance','',{},180)`：c
 
 ### 消息 proof（repo §5.2 规范）
 
-agent 的每条 GitHub comment 附 agentSeal EIP-191 签名块；验签用 `scripts/team-ops/verify-proof.js`（node + viem，`ecrecover == agentSeal` 再核 SHA-256(raw body)）。sign socket 从 Python 走：`httpx.Client(transport=HTTPTransport(uds=$SEAL_SIGN_SOCK)).post("http://localhost/sign/personal_sign", json={"message": …})`。
+agent 的每条 GitHub comment **发布时自带签名**（§5.2 v1.1）：正文 + proof block（signer/signature 两行，签名内容=正文本身，中文实测通过）；验签用 `scripts/team-ops/verify-proof.js`（node + viem，剥离 proof block 后 `ecrecover(正文) == agentSeal`）。sign socket 从 Python 走：`httpx.Client(transport=HTTPTransport(uds=$SEAL_SIGN_SOCK)).post("http://localhost/sign/personal_sign", json={"message": …})`。
 
 ### lead 运营纪律（实测认错清单，owner 点名）
 
