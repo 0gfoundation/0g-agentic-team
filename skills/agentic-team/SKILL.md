@@ -7,6 +7,10 @@ description: Agent Team 运营工具箱 for 0G AgenticID——环境快照、链
 
 Lead agent 的团队运营工具。v0.1 全部为**只读**操作（零资金风险）；deploy/stop/deposit 等写操作在 v0.2 经 sign-socket 桥接后加入（须 owner 拍板后才实际使用）。
 
+**运行前提**：本 skill 面向 Prime Agent sealed runtime（kernel venv）——shell CLI（`rlm.skill:cli`）与模块直呼 `await at()` 依赖 runtime 注入的 `rlm`；standalone `pip install` 仅有 Python 函数可用，CLI 入口点不可用。所有 I/O 为同步阻塞（httpx sync），kernel 单次调用无碍，勿在 async 热路径高频轮询。
+
+**数据口径**：合约地址以 attestor `GET /config` 为 source of truth（模块常量仅作断网 fallback，地址可能随重新部署漂移）。`runway()`/`prepaid_balance()` 为链上读数——**乐观上界**，不含链下未结算费用（testnet 实测曾高估 25+ OG）；真实可用额度待 v0.2 接 provider `/api/balance` 的 `available`（需 EIP-191 envelope 签名，`/sign/personal_sign` 可覆盖）。
+
 ## 环境
 
 - 主网 attestor: `https://agenticid-mainnet.0g.ai`（`GET /config`）
@@ -45,10 +49,14 @@ at.roster()                      # 团队名册（agents.yml）
 | `cost_model(cpu, mem_gb, hours_per_day)` | 成本测算 → 每分钟/小时/天/月 OG（默认 2c4g）|
 | `seal_balance(address)` | agentSeal 地址的 native 余额 |
 | `prepaid_balance(user)` | SandboxServing 三元组余额 |
-| `runway(cpu, mem_gb)` | prepaid 余额按定价能跑多少分钟 |
+| `runway(cpu, mem_gb)` | prepaid 余额按定价能跑多少分钟（⚠️ 乐观上界，不含链下欠费） |
 | `roster(path)` | 解析 agents.yml 名册 |
 
 写操作路线（v0.2）: viem 自定义 account 桥接 `unix://$SEAL_SIGN_SOCK`（`/sign/personal_sign`、`/sign/typed_data`、`/sign/transaction`），覆盖 SDK 的 envelope 签名与链上交易。签名仅限 lead 自主起草的动作。
+
+## 测试
+
+`python tests/test_golden.py` —— services()/getBalance() 解码 golden vector（2026-09-11 主网实抓）+ 字段名回归。
 
 ## 红线
 
