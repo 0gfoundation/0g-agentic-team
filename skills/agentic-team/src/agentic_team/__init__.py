@@ -9,6 +9,7 @@ I/O 全部为同步阻塞（httpx sync client）——kernel 日常调用可接�
 
 from __future__ import annotations
 
+import json
 import os
 import time
 from typing import Any
@@ -245,7 +246,7 @@ def env() -> dict:
 # ── run() 入口 ─────────────────────────────────────────────────────────
 async def run(action: str = "check", **kwargs: Any) -> Any:
     """入口分发。action ∈ {check, env, config, pricing, cost-model,
-    runway, prepaid, balance, roster}。其余 kwargs 透传给对应函数。
+    runway, prepaid, balance, effective-balance, roster}。其余 kwargs 透传给对应函数。
     注意：底层为同步 I/O，kernel 单次调用无碍，勿在 async 热路径里高频调用。
     """
     acts = {
@@ -253,7 +254,62 @@ async def run(action: str = "check", **kwargs: Any) -> Any:
         "pricing": pricing, "cost-model": cost_model, "cost_model": cost_model,
         "runway": runway, "prepaid": prepaid_balance,
         "balance": seal_balance, "roster": roster,
+        "effective-balance": effective_balance,
+        "effective_balance": effective_balance,
     }
     if action not in acts:
         raise ValueError(f"unknown action {action!r}; 可用: {sorted(acts)}")
     return acts[action](**kwargs)
+
+
+def effective_balance(ttl_sec: int = 180) -> dict:
+    """Provider 侧真实可用额度（v0.2）。走 sandbox provider 的 owner-signed
+    `GET /api/balance`——链上 prepaid 是乐观上界，这个数才反映 create/start
+    闸门实际执行的可用额度（链上 − 在途预留 − 未结算欠费 − 待结算 voucher）。
+
+    envelope 复刻 SDK AttestorClient.signEnvelope('balance', '', {}, ttl)：
+    canonical JSON（紧凑、字母序 key、provider 绑定防跨 provider 重放）经本 TEE
+    sign socket `/sign/personal_sign` 签署（私钥不出 TEE）。
+    """
+    import base64 as _b64
+    import secrets as _secrets
+    cfg = attestor_config()
+    endpoint = cfg.get("sandbox_endpoint")
+    if not endpoint:
+        raise RuntimeError("attestor /config 未提供 sandbox_endpoint，provider balance 不可用")
+    provider = cfg.get("sandbox_provider_addr") or cfg.get("provider") or ""
+    canonical = json.dumps({
+        "action": "balance",
+        "expires_at": int(time.time()) + ttl_sec,
+        "nonce": "0x" + _secrets.token_hex(16),
+        "payload": {},
+        **({"provider": provider} if provider else {}),
+        "resource_id": "",
+    }, separators=(",", ":"), ensure_ascii=False)
+    sock = os.environ.get("SEAL_SIGN_SOCK", "/run/seal-sign.sock")
+    with httpx.Client(transport=httpx.HTTPTransport(uds=sock), timeout=30) as sc:
+        rs = sc.post("http://localhost/sign/personal_sign", json={"message": canonical})
+    rs.raise_for_status()
+    sig = rs.json()
+    r = httpx.get(
+        f"{endpoint.rstrip('/')}/api/balance",
+        headers={
+            "X-Wallet-Address": sig["address"],
+            "X-Signed-Message": _b64.b64encode(canonical.encode()).decode(),
+            "X-Wallet-Signature": sig["signature"],
+        },
+        timeout=15,
+    )
+    r.raise_for_status()
+    b = r.json()
+    og = lambda k: int(b.get(k) or "0") / 1e18
+    out = {
+        "available_wei": int(b.get("available") or "0"),
+        "available_og": og("available"),
+        "balance_og": og("balance"),
+        "reserved_og": og("reserved"),
+        "outstanding_debt_og": og("outstanding_debt"),
+        "pending_settlement_og": og("pending_settlement"),
+        "signer": sig["address"],
+    }
+    return out

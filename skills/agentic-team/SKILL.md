@@ -5,11 +5,11 @@ description: Agent Team 运营工具箱 for 0G AgenticID——环境快照、链
 
 # Agentic Team Ops
 
-Lead agent 的团队运营工具。v0.1 全部为**只读**操作（零资金风险）；deploy/stop/deposit 等写操作在 v0.2 加入：SDK 官方 `sealAccount()` TEE 桥已实测验证（须 owner 拍板后才实际使用）。
+Lead agent 的团队运营工具。v0.2：新增 `effective_balance()`——provider 侧真实可用额度（纯 Python 复刻 SDK envelope，经本 TEE sign socket 签署，零 node 依赖）。其余仍为只读；写操作（deploy/start/stop/deposit/ack/chat 派活）经 `scripts/team-ops/` 的 node 脚本（SDK 官方 `sealAccount()`，须 owner 拍板后使用）。
 
 **运行前提**：本 skill 面向 Prime Agent sealed runtime（kernel venv）——shell CLI（`rlm.skill:cli`）与模块直呼 `await at()` 依赖 runtime 注入的 `rlm`；standalone `pip install` 仅有 Python 函数可用，CLI 入口点不可用。所有 I/O 为同步阻塞（httpx sync），kernel 单次调用无碍，勿在 async 热路径高频轮询。
 
-**数据口径**：合约地址以 attestor `GET /config` 为 source of truth（模块常量仅作断网 fallback，地址可能随重新部署漂移）。`runway()`/`prepaid_balance()` 为链上读数——**乐观上界**，不含链下未结算费用（testnet 实测曾高估 25+ OG）；真实可用额度待 v0.2 接 provider `/api/balance` 的 `available`（需 EIP-191 envelope 签名，`/sign/personal_sign` 可覆盖）。
+**数据口径**：合约地址以 attestor `GET /config` 为 source of truth（模块常量仅作断网 fallback，地址可能随重新部署漂移）。`runway()`/`prepaid_balance()` 为链上读数——**乐观上界**（不含链下未结算费用，实测曾高估 25+ OG）；**真实可用额度用 `effective_balance()`**（provider `/api/balance`，envelope 经 `/sign/personal_sign`）。巡检时两者都看：链上 > provider 可用 = 有未结算欠费在途。
 
 ## 环境
 
@@ -61,3 +61,43 @@ at.roster()                      # 团队名册（agents.yml）
 ## 红线
 
 金库私钥永不出 TEE；签名仅用于自己起草的动作；扩编/reset 须 owner 批。
+
+
+## v0.2 新增：实测沉淀（2026-09-11 建队实测）
+
+### effective_balance()
+
+```python
+at.effective_balance()   # → available_og / balance_og / reserved / outstanding_debt / pending_settlement
+```
+
+envelope 规格复刻 SDK `AttestorClient.signEnvelope('balance','',{},180)`：canonical JSON 紧凑无空格、key 字母序、`sandbox_provider_addr` 绑定防跨 provider 重放；`resource_id` 为空串。
+
+### chat 派活 SOP（踩坑换来的）
+
+- **拆小卡**：每卡单一动作包（≤~5 分钟）。整卡派活必被网关掐（~300s 无字节断连；bridge 把断连当 OpenAI cancel → **中止成员 turn**，半途而废）。
+- 工具活动（ipython update 事件）有字节流→连接稳；纯 reasoning 段超 ~300s 无字节→被掐。**Python 侧 subprocess timeout ≥1500s**，别自杀连接。
+- 被掐后发**续接卡**（"前 N 步已做完，只做剩余步骤"）——成员 ipython 变量跨 turn 存活，可复用。
+- 排障：`c.logs({tail:N})`（owner-signed `/log/agent`）看成员 bridge 日志；`listMyDeployments` 看 phase（**等 `phase=='running'`，url 在 deploying 阶段就出现，别见 url 就当活**）。
+
+### 成员部署：镜像选择
+
+`/config` 的 frameworks[] 每框架有专属 image——`start(sealId, {apiKey, sealedImage})` 必须带对：
+
+| framework | sealedImage |
+|---|---|
+| prime-agent | `0g-sealed-prime`（默认 snapshot `0g-sealed` **不含** prime-agent，会报 "not installed in this image"） |
+| hermes | `0g-sealed-hermes` |
+| openclaw / dsh | `0g-sealed` |
+
+### 消息 proof（repo §5.2 规范）
+
+agent 的每条 GitHub comment 附 agentSeal EIP-191 签名块；验签用 `scripts/team-ops/verify-proof.js`（node + viem，`ecrecover == agentSeal` 再核 SHA-256(raw body)）。sign socket 从 Python 走：`httpx.Client(transport=HTTPTransport(uds=$SEAL_SIGN_SOCK)).post("http://localhost/sign/personal_sign", json={"message": …})`。
+
+### lead 运营纪律（实测认错清单，owner 点名）
+
+1. **确认门不绕行**：lead 代建的 issue 是提案，必须等 owner 在 issue 下显式点头才开工——对话里的口头拍板不算 issue 级确认（§5.1 规则 1 后半句，实测第一单就绕过去了）。
+2. **凭据最小权限**：成员 GitHub 凭据必须 owner 明确授权 + 专属最小权限 PAT（只限本 repo）；共享大范围 PAT 未经 owner 点名不得转交；任务完成即提醒 owner rotate。
+3. **任务完成即停**：成员 idle = 烧钱（0.004 OG/min）。验证通过直接 stop，不等 owner 提醒。
+4. **立规先自守**：proof 规范对 lead 自己的每条 comment 同样生效（包括确认认领 comment）。
+5. **派活拆卡**：见上 SOP。
