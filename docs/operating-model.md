@@ -51,6 +51,7 @@ GitHub repo（工作台）+ /api/*（对外签名服务）
 
 **技术要点：**
 - persona 是 one-shot seed → **入职协议必须在 deploy 前定稿**，这是模式的硬约束
+  - 模板与 deploy 检查表：[onboarding-persona.md](onboarding-persona.md)（填空 → lead 终审 → owner 确认 → deploy）
 - deploy preflight：金库需已 `ack()` 三组件 + prepaid 余额 ≥ 0.1 OG
 - `waitForMint` → agentId（ERC-7857 Agent NFT tokenId）是成员的永久链上身份
 - 扩编优选 `clone()`（从优秀成员复制），而非从零 deploy
