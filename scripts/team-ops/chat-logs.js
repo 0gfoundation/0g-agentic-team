@@ -1,4 +1,4 @@
-// chat-logs.js — 读 backend-1 进程日志（owner-signed /log/agent）
+// chat-logs.js — read backend-1's process logs (owner-signed /log/agent)
 const { getClient } = require("./team-init");
 (async () => {
   const { ag } = await getClient();

@@ -1,5 +1,5 @@
-// start-backend1.js — 首次 provision（mint-only agent → fresh container）
-// 计费从这一刻开始：0.004 OG/min（2c4g）
+// start-backend1.js — first provision (mint-only agent → fresh container)
+// Billing starts at this moment: 0.004 OG/min (2c4g)
 const fs = require("node:fs");
 const { getClient } = require("./team-init");
 
@@ -10,11 +10,11 @@ const API_KEY = fs.readFileSync("/root/.prime/agent/.env", "utf-8")
 (async () => {
   const { ag } = await getClient();
   console.log("starting backend-1 (first provision)…");
-  // prime-agent binding 需要专用镜像（/config: frameworks['prime-agent'].image）
+  // prime-agent binding needs the dedicated image (/config: frameworks['prime-agent'].image)
   await ag.agent.start(SEAL_ID, { apiKey: API_KEY, sealedImage: "0g-sealed-prime" });
   console.log("start accepted — container provisioning…");
 
-  // 等 running：listMyDeployments 出现 url / state
+  // wait for running: listMyDeployments shows the url / state
   for (let i = 0; i < 30; i++) {
     await new Promise(r => setTimeout(r, 10000));
     const deps = await ag.agent.listMyDeployments();

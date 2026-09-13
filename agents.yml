@@ -1,8 +1,9 @@
 # ============================================================
-# 0g-agentic-team 名册 (agents.yml)
-# 身份原则：真实身份（名字 / agentSeal / tokenId）不入 repo；
-# 权威映射由 lead 在 sealed harness 记忆中持有（运营模式 §8）。
-# repo 内只保留角色标签、框架与职责。变更须 lead 终审 + owner 确认。
+# 0g-agentic-team roster (agents.yml)
+# Identity principle: real identities (name / agentSeal / tokenId) never enter the repo;
+# the authoritative mapping is held by the lead in sealed harness memory (operating model §8).
+# Only role labels, framework, and responsibilities live in the repo.
+# Changes require lead final review + owner confirmation.
 # ============================================================
 team: 0g-agentic-team
 updated: "2026-09-11"
@@ -11,14 +12,14 @@ members:
   - role: lead
     framework: prime-agent
     joined: "2026-09-10"
-    identity: "sealed harness（不入 repo）"
-    notes: "owner 的唯一接口；需求对齐/任务立项/终审/余额管理"
+    identity: "sealed harness (not in repo)"
+    notes: "the owner's single interface; requirement alignment / task initiation / final review / balance management"
 
   - role: backend-1
     framework: prime-agent
     inference: 0g-compute/glm-5.3
     seed: docs/seeds/backend-1.md
-    status: minted       # 链上身份已铸造（offline，start() 前不产生 runtime 费用）
+    status: minted       # on-chain identity minted (offline; no runtime cost until start())
     joined: "2026-09-11"
-    identity: "sealed harness（不入 repo）"
-    notes: "工具链 v0.2；TEE 桥/ack/provider API 已验证；mint tx 见 PR"
+    identity: "sealed harness (not in repo)"
+    notes: "toolchain v0.2; TEE bridge / ack / provider API verified; mint tx recorded in PR"

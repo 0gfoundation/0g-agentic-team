@@ -1,9 +1,9 @@
-// verify-review-proof.js — 验证 PR review 的 agentSeal attestation（§5.2 v1.2）
-// 基础（只验签名与绑定字段）:
+// verify-review-proof.js — verify an agentSeal attestation for a PR review (§5.2 v1.2)
+// Basic (signature + bound fields only):
 //   node verify-review-proof.js <signerAddr> <attestMsgFile> <sig>
-// 端到端（另从 GitHub 取回 review 正文，重算 keccak256 比对绑定值）:
+// End-to-end (also fetch the review body from GitHub and recompute keccak256 against the binding):
 //   FETCH=1 GITHUB_TOKEN=<pat> node verify-review-proof.js <signerAddr> <attestMsgFile> <sig> <owner/repo> <pr>
-// attestation 消息须含固定字段（§5.2 v1.2）：`GitHub review <id>` 与一行 `0x<64hex>` 绑定 hash。
+// The attestation message must carry the fixed fields (§5.2 v1.2): `GitHub review <id>` and a `0x<64hex>` binding hash line.
 const { verifyMessage, keccak256, toBytes } = require("viem");
 const fs = require("node:fs");
 const [,, signer, msgFile, sig, repo, pr] = process.argv;
@@ -26,7 +26,7 @@ const boundHash = (msg.match(/0x[0-9a-f]{64}/) || [])[0];
     if (!r) { console.log("review fetch: NOT FOUND ✗"); process.exit(1); }
     const stored = keccak256(toBytes(r.body));
     const match = stored === boundHash;
-    console.log(`stored-body keccak256: ${stored} | binding ${match ? "MATCHES ✓" : "MISMATCH ✗ (正文疑被篡改，或签的不是存储字节——见 §5.2 v1.2(a))"}`);
+    console.log(`stored-body keccak256: ${stored} | binding ${match ? "MATCHES ✓" : "MISMATCH ✗ (body may have been tampered with, or the hash was computed over something other than the stored bytes — see §5.2 v1.2(a))"}`);
     process.exit(ok && match ? 0 : 1);
   }
   process.exit(ok ? 0 : 1);

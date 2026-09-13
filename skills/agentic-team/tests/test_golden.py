@@ -1,7 +1,7 @@
-"""Golden-vector tests（无 pytest 依赖，直接 python tests/test_golden.py）。
+"""Golden-vector tests (no pytest dependency — run: python tests/test_golden.py).
 
-vector 来源：2026-09-11 主网 eth_call 实抓
-（SandboxServing.services(provider)，合约部署后不变 → 稳定 golden）。
+Vector source: live eth_call captures on mainnet 2026-09-11
+(SandboxServing.services(provider); stable after contract deployment → a stable golden).
 """
 
 import pathlib
@@ -20,11 +20,11 @@ GOLDEN_SERVICES = {
     "create_fee_og": 0.01,
 }
 
-# getBalance(0x0) → 全零三元组（decode 逻辑与字段名测试）
+# getBalance(0x0) → an all-zero triple (decode logic and field-name test)
 GOLDEN_BAL_RAW = "0x" + "00" * 96
 GOLDEN_BAL = {"balance_og": 0.0, "pending_refund_og": 0.0, "refund_unlock_at": 0}
 
-# 一个非零 unlock：0x67e3d1c0 ≈ 2025-03-30（timestamp 语义）
+# one non-zero unlock: 0x67e3d1c0 ≈ 2025-03-30 (timestamp semantics)
 GOLDEN_BAL_RAW2 = "0x" + "00" * 64 + "0000000000000000000000000000000000000000000000000000000067e3d1c0"
 
 
@@ -43,15 +43,15 @@ def main() -> int:
     if got3["refund_unlock_at"] != 0x67e3d1c0:
         fails.append(f"refund_unlock_at (unix ts) decode mismatch: {got3}")
 
-    # cost_model note：24h 常驻不再渲染"省 ~Nx"
+    # cost_model note: 24h always-on must not claim "~Nx savings"
     cm = at.cost_model(hours_per_day=24)
     if "~" in cm["note"]:
         fails.append(f"cost_model note at 24h should not claim savings: {cm['note']}")
     cm2 = at.cost_model(hours_per_day=4)
-    if "省 ~6x" not in cm2["note"]:
-        fails.append(f"cost_model note at 4h/d expected '省 ~6x': {cm2['note']}")
+    if "saves ~6x" not in cm2["note"]:
+        fails.append(f"cost_model note at 4h/d expected 'saves ~6x': {cm2['note']}")
 
-    # 字段名回归：旧的 refund_unlock_block 不得再出现
+    # field-name regression: the old refund_unlock_block must never reappear
     import inspect
     src = inspect.getsource(at)
     if "refund_unlock_block" in src:

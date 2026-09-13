@@ -1,69 +1,68 @@
 ---
 name: agentic-team
-description: Agent Team 运营工具箱 for 0G AgenticID——环境快照、链上定价与成员成本模型、prepaid/seal 余额巡检、runway 续航计算、agents.yml 名册管理、健康检查。Use when managing an AgenticID agent team as lead: deploying members, budgeting runtime costs, checking balances/runway, or reading the team roster.
+description: Agent Team ops toolbox for 0G AgenticID — environment snapshots, on-chain pricing and member cost models, prepaid/seal balance checks, runway computation, agents.yml roster management, health checks. Use when managing an AgenticID agent team as lead: deploying members, budgeting runtime costs, checking balances/runway, or reading the team roster.
 ---
 
 # Agentic Team Ops
 
-Lead agent 的团队运营工具。v0.2：新增 `effective_balance()`——provider 侧真实可用额度（纯 Python 复刻 SDK envelope，经本 TEE sign socket 签署，零 node 依赖）。其余仍为只读；写操作（deploy/start/stop/deposit/ack/chat 派活）经 `scripts/team-ops/` 的 node 脚本（SDK 官方 `sealAccount()`，须 owner 拍板后使用）。
+The lead agent's team-operations toolbox. v0.2: adds `effective_balance()` — the provider-side truly-available credit (a pure-Python replica of the SDK envelope, signed through this TEE's sign socket, zero node dependencies). Everything else remains read-only; write operations (deploy/start/stop/deposit/ack/chat task dispatch) go through the node scripts in `scripts/team-ops/` (official SDK `sealAccount()`, use only after the owner signs off).
 
-**运行前提**：本 skill 面向 Prime Agent sealed runtime（kernel venv）——shell CLI（`rlm.skill:cli`）与模块直呼 `await at()` 依赖 runtime 注入的 `rlm`；standalone `pip install` 仅有 Python 函数可用，CLI 入口点不可用。所有 I/O 为同步阻塞（httpx sync），kernel 单次调用无碍，勿在 async 热路径高频轮询。
+**Runtime prerequisites**: this skill targets the Prime Agent sealed runtime (kernel venv) — the shell CLI (`rlm.skill:cli`) and direct module calls `await at()` depend on runtime-injected `rlm`; a standalone `pip install` exposes only the Python functions, not the CLI entry point. All I/O is synchronous and blocking (httpx sync) — fine for single kernel calls; do not use on hot async paths for high-frequency polling.
 
-**数据口径**：合约地址以 attestor `GET /config` 为 source of truth（模块常量仅作断网 fallback，地址可能随重新部署漂移）。`runway()`/`prepaid_balance()` 为链上读数——**乐观上界**（不含链下未结算费用，实测曾高估 25+ OG）；**真实可用额度用 `effective_balance()`**（provider `/api/balance`，envelope 经 `/sign/personal_sign`）。巡检时两者都看：链上 > provider 可用 = 有未结算欠费在途。
+**Data conventions**: the attestor's `GET /config` is the source of truth for contract addresses (module constants are an offline fallback only; addresses drift across redeployments). `runway()`/`prepaid_balance()` are on-chain readings — an **optimistic upper bound** (off-chain unsettled costs not included; once measured 25+ OG high on testnet); for truly-available credit use `effective_balance()` (provider `/api/balance`, envelope signed via `/sign/personal_sign`). When inspecting, look at both: on-chain > provider-available means unsettled debt is in flight.
 
-## 环境
+## Environment
 
-- 主网 attestor: `https://agenticid-mainnet.0g.ai`（`GET /config`）
-- RPC: `https://evmrpc.0g.ai`（chain 16661）
-- 金库 = lead 的 agentSeal（env `AGENT_SEAL`，默认 lead）
-- 名册: repo `0g-agentic-team` 的 `agents.yml`
+- mainnet attestor: `https://agenticid-mainnet.0g.ai` (`GET /config`)
+- RPC: `https://evmrpc.0g.ai` (chain 16661)
+- treasury = the lead's agentSeal (env `AGENT_SEAL`, the lead by default)
+- roster: `agents.yml` in the `0g-agentic-team` repo
 
-## 从内核调用
+## Calling from the kernel
 
 ```python
 import agentic_team as at
 
-await at()                       # 默认 action="check" 健康检查
-await at(action="env")           # 全环境快照（config+合约+余额）
-at.pricing()                     # 链上定价（CPU/内存/创建费, OG）
-at.cost_model()                                    # 成员月成本（默认 2CPU+4GB）
-at.runway()                      # 金库 prepaid 余额与续航分钟
-at.roster()                      # 团队名册（agents.yml）
+await at()                       # default action="check" health check
+await at(action="env")           # full environment snapshot (config + contracts + balances)
+at.pricing()                     # on-chain pricing (CPU/memory/creation fee, OG)
+at.cost_model()                                    # member monthly cost (default 2CPU+4GB)
+at.runway()                      # treasury prepaid balance and runway minutes
+at.roster()                      # team roster (agents.yml)
 ```
 
-## 从 shell 调用
+## Calling from the shell
 
     agentic_team check
     agentic_team env
     agentic_team pricing
     agentic_team cost-model --cpu 1 --mem-gb 1 --hours-per-day 4
 
-## 函数一览
+## Function reference
 
-| 函数 | 干什么 |
+| Function | What it does |
 |---|---|
-| `check()` | attestor/RPC/合约 三点健康检查 |
-| `env()` | 环境快照: attestor config + 地址表 + seal/prepaid 余额 |
-| `attestor_config()` | 原始 `GET /config` |
-| `pricing()` | SandboxServing.services() 链上定价 |
-| `cost_model(cpu, mem_gb, hours_per_day)` | 成本测算 → 每分钟/小时/天/月 OG（默认 2c4g）|
-| `seal_balance(address)` | agentSeal 地址的 native 余额 |
-| `prepaid_balance(user)` | SandboxServing 三元组余额 |
-| `runway(cpu, mem_gb)` | prepaid 余额按定价能跑多少分钟（⚠️ 乐观上界，不含链下欠费） |
-| `roster(path)` | 解析 agents.yml 名册 |
+| `check()` | three-point health check: attestor / RPC / contracts |
+| `env()` | environment snapshot: attestor config + address table + seal/prepaid balances |
+| `attestor_config()` | raw `GET /config` |
+| `pricing()` | SandboxServing.services() on-chain pricing |
+| `cost_model(cpu, mem_gb, hours_per_day)` | cost projection → OG per minute/hour/day/month (default 2c4g) |
+| `seal_balance(address)` | native balance of an agentSeal address |
+| `prepaid_balance(user)` | SandboxServing triple balance |
+| `runway(cpu, mem_gb)` | how many minutes of runtime the prepaid balance buys (⚠️ optimistic upper bound, off-chain debt not included) |
+| `roster(path)` | parse the agents.yml roster |
 
-写操作路线（v0.2）: **SDK 官方 TEE 桥 `sealAccount()`**（`@0gfoundation/0g-agenticid-sdk/seal` 子路径导出）——完整的 viem LocalAccount 直连 `unix://$SEAL_SIGN_SOCK`，三签名端点全桥接；`AgenticID.fromAttestor(url, {account: await sealAccount()})` 后 SDK 全量写操作可用。⚠️ 勿手搓 account 对象：viem 的 `toAccount()` 形状（source/sign/serializer hooks）在发送路径深处有隐含要求，官方 `sealAccount()` 就是为这准备的（2026-09-11 实测通过：ack 上链 / effective balance / deploy envelope）。签名仅限 lead 自主起草的动作。已验证工具链在 repo `scripts/team-ops/`。
+Write-ops route (v0.2): **the official SDK TEE bridge `sealAccount()`** (exported from the `@0gfoundation/0g-agenticid-sdk/seal` subpath) — a full viem LocalAccount wired directly to `unix://$SEAL_SIGN_SOCK`, bridging all three signing endpoints; after `AgenticID.fromAttestor(url, {account: await sealAccount()})`, the SDK's full write surface is available. ⚠️ Do not hand-roll account objects: viem's `toAccount()` shape (source/sign/serializer hooks) carries implicit requirements deep in the send path — the official `sealAccount()` exists precisely for this (verified live 2026-09-11: ack on chain / effective balance / deploy envelope). Signing is only for actions the lead drafted itself. The verified toolchain lives in the repo at `scripts/team-ops/`.
 
-## 测试
+## Testing
 
-`python tests/test_golden.py` —— services()/getBalance() 解码 golden vector（2026-09-11 主网实抓）+ 字段名回归。
+`python tests/test_golden.py` — services()/getBalance() decode golden vectors (captured live on mainnet 2026-09-11) + field-name regression.
 
-## 红线
+## Red lines
 
-金库私钥永不出 TEE；签名仅用于自己起草的动作；扩编/reset 须 owner 批。
+The treasury private key never leaves the TEE; signing only for self-drafted actions; headcount expansion/reset requires owner approval.
 
-
-## v0.2 新增：实测沉淀（2026-09-11 建队实测）
+## v0.2 additions: field notes (from live team-building, 2026-09-11)
 
 ### effective_balance()
 
@@ -71,35 +70,35 @@ at.roster()                      # 团队名册（agents.yml）
 at.effective_balance()   # → available_og / balance_og / reserved / outstanding_debt / pending_settlement
 ```
 
-envelope 规格复刻 SDK `AttestorClient.signEnvelope('balance','',{},180)`：canonical JSON 紧凑无空格、key 字母序、`sandbox_provider_addr` 绑定防跨 provider 重放；`resource_id` 为空串。
+The envelope spec replicates the SDK `AttestorClient.signEnvelope('balance','',{},180)`: canonical JSON compact without spaces, alphabetically sorted keys, `sandbox_provider_addr` bound to prevent cross-provider replay; `resource_id` is the empty string.
 
-### chat 派活 SOP（踩坑换来的）
+### Chat task-dispatch SOP (learned the hard way)
 
-- **拆小卡**：每卡单一动作包（≤~5 分钟）。整卡派活必被网关掐（~300s 无字节断连；bridge 把断连当 OpenAI cancel → **中止成员 turn**，半途而废）。
-- 工具活动（ipython update 事件）有字节流→连接稳；纯 reasoning 段超 ~300s 无字节→被掐。**Python 侧 subprocess timeout ≥1500s**，别自杀连接。
-- 被掐后发**续接卡**（"前 N 步已做完，只做剩余步骤"）——成员 ipython 变量跨 turn 存活，可复用。
-- 排障：`c.logs({tail:N})`（owner-signed `/log/agent`）看成员 bridge 日志；`listMyDeployments` 看 phase（**等 `phase=='running'`，url 在 deploying 阶段就出现，别见 url 就当活**）。
+- **Split into small cards**: each card is a single action package (≤ ~5 minutes). Dispatching a big card always gets cut by the gateway (~300s no-bytes disconnect; the bridge treats a disconnect as an OpenAI cancel → **aborts the member's turn**, half-done).
+- Tool activity (ipython update events) streams bytes → the connection holds; pure reasoning segments with no bytes for ~300s → cut. **Python-side subprocess timeout ≥ 1500s**; do not kill your own connection.
+- After a cut, send a **continuation card** ("the first N steps are done, do only the remaining steps") — member ipython variables survive across turns and can be reused.
+- Debugging: `c.logs({tail:N})` (owner-signed `/log/agent`) to read the member bridge log; `listMyDeployments` to watch phase (**wait for `phase=='running'`; the url already appears during deploying — do not treat a url as alive**).
 
-### 成员部署：镜像选择
+### Member deployment: image selection
 
-`/config` 的 frameworks[] 每框架有专属 image——`start(sealId, {apiKey, sealedImage})` 必须带对：
+Each framework in `/config`'s frameworks[] has its own image — `start(sealId, {apiKey, sealedImage})` must carry the right one:
 
 | framework | sealedImage |
 |---|---|
-| prime-agent | `0g-sealed-prime`（默认 snapshot `0g-sealed` **不含** prime-agent，会报 "not installed in this image"） |
+| prime-agent | `0g-sealed-prime` (the default snapshot `0g-sealed` does **not** include prime-agent — it errors "not installed in this image") |
 | hermes | `0g-sealed-hermes` |
 | openclaw / dsh | `0g-sealed` |
 
-### 消息 proof（repo §5.2 规范）
+### Message proof (repo §5.2 spec)
 
-agent 的每条 GitHub comment **发布时自带签名**（§5.2 v1.1）：正文 + proof block（signer/signature 两行，签名内容=正文本身，中文实测通过）；验签用 `scripts/team-ops/verify-proof.js`（node + viem，剥离 proof block 后 `ecrecover(正文) == agentSeal`）。sign socket 从 Python 走：`httpx.Client(transport=HTTPTransport(uds=$SEAL_SIGN_SOCK)).post("http://localhost/sign/personal_sign", json={"message": …})`。
+Every GitHub comment by an agent **carries its signature at posting time** (§5.2 v1.1): body + proof block (two lines: signer/signature; the signed content is the body itself — verified live with CJK content). Verify with `scripts/team-ops/verify-proof.js` (node + viem: strip the proof block, then `ecrecover(body) == agentSeal`). Reaching the sign socket from Python: `httpx.Client(transport=HTTPTransport(uds=$SEAL_SIGN_SOCK)).post("http://localhost/sign/personal_sign", json={"message": …})`.
 
-**v1.2 补充（2026-09-13 实测）**：PR review 的 proof 走 attestation comment（绑 `review_id` + `keccak256(取回的存储正文)`），验签 `verify-review-proof.js`（`FETCH=1` 端到端复算）。凡 proof 绑 hash：先发布 → API 取回存储字节 → 对存储字节算 hash → 才签 → 发布后端到端自验（实测翻过车：对本地草稿算 hash，绑定落空）。协议动作签名（envelope/团队 API）守 §5.2 v1.2(c) 签名卫生六条。
+**v1.2 additions (live 2026-09-13)**: proof for PR reviews takes the attestation-comment form (binding `review_id` + `keccak256(fetched-back stored body)`), verified by `verify-review-proof.js` (`FETCH=1` recomputes end to end). Whenever a proof binds a hash: post → fetch the stored bytes back from the API → hash the stored bytes → only then sign → end-to-end self-verify after posting (this failed live once: hashing the local draft left the binding dead). Protocol-action signatures (envelopes / team APIs) follow the six signing-hygiene rules of §5.2 v1.2(c).
 
-### lead 运营纪律（实测认错清单，owner 点名）
+### Lead operating discipline (the learned-the-hard-way list, owner-called-out)
 
-1. **确认门不绕行**：lead 代建的 issue 是提案，必须等 owner 在 issue 下显式点头才开工——对话里的口头拍板不算 issue 级确认（§5.1 规则 1 后半句，实测第一单就绕过去了）。
-2. **凭据最小权限**：成员 GitHub 凭据必须 owner 明确授权 + 专属最小权限 PAT（只限本 repo）；共享大范围 PAT 未经 owner 点名不得转交；任务完成即提醒 owner rotate。
-3. **任务完成即停**：成员 idle = 烧钱（0.004 OG/min）。验证通过直接 stop，不等 owner 提醒。
-4. **立规先自守**：proof 规范对 lead 自己的每条 comment 同样生效（包括确认认领 comment）。
-5. **派活拆卡**：见上 SOP。
+1. **Never bypass the confirmation gate**: an issue the lead files on behalf of someone is a proposal — work starts only after the owner explicitly nods in the issue; a verbal go-ahead in conversation is not issue-level confirmation (§5.1 rule 1, second half — violated on the very first task, live).
+2. **Least-privilege credentials**: member GitHub credentials require explicit owner authorization + a dedicated minimal-scope PAT (this repo only); a shared broad PAT may never be handed over unless the owner names it; remind the owner to rotate when the task is done.
+3. **Stop when the task is done**: an idle member burns money (0.004 OG/min). Verify, then stop — do not wait for the owner to remind.
+4. **Rules apply to the rule-maker**: the proof spec binds every comment the lead itself posts (including claim-confirmation comments).
+5. **Split cards when dispatching**: see the SOP above.

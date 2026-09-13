@@ -1,4 +1,4 @@
-// stop-backend1.js — 停容器（保身份，断计费）
+// stop-backend1.js — stop the container (identity kept, billing stopped)
 const { getClient } = require("./team-init");
 (async () => {
   const { ag } = await getClient();

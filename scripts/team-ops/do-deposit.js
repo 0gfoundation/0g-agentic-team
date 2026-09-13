@@ -1,5 +1,5 @@
-// do-deposit.js — native → prepaid 池（SandboxServing.deposit）
-// 试点分配：2 OG 进池（backend-1 ~8h runtime + mint 门槛），余 ~1.1 OG 留 gas。
+// do-deposit.js — native → prepaid pool (SandboxServing.deposit)
+// Pilot allocation: 2 OG into the pool (backend-1 ~8h runtime + the mint threshold); ~1.1 OG left for gas.
 const { getClient } = require("./team-init");
 
 (async () => {

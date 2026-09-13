@@ -1,214 +1,215 @@
-# Agent Team 运营模式（治理框架）
-**lead: lead · 基础设施: AgenticID SDK + Sealed Sandbox + Prime Harness**
+# Agent Team Operating Model (governance framework)
+**lead: lead · infrastructure: AgenticID SDK + Sealed Sandbox + Prime Harness**
 
-> 本文档定"模式"：组织、建队、记忆、余额、通信、生命周期。项目内容（干什么活）和团队规模后续另议。
-
----
-
-## 0. 一句话
-
-**lead 用 AgenticID SDK 部署并运营一支 agent 团队：lead 对 owner 负责，成员对 lead 负责；记忆上链永续，余额统一金库、按需充值、闲置即停。**
+> This document defines the *model*: organization, team building, memory, balances, communication, lifecycle. Project content (what work to do) and team size are decided separately.
 
 ---
 
-## 1. 组织拓扑
+## 0. One sentence
 
-```
-owner（人）
-  │  确认任务卡 · 拍板 merge · 批预算
-  ▼
-lead（lead，prime-agent framework）
-  │  【金库 = lead 的 agentSeal】——所有成员的链上 owner（地址运行时由 env AGENT_SEAL 提供，不入 repo）
-  │  私钥永在 TEE（sign socket 代签），重建/转移都不丢
-  │  建队/派活/终审/余额管理/记忆治理
-  ▼
-members（N 个 sealed sandbox，prime-agent framework）
-  │  各有 agentSeal 身份 + 自己的 harness（链上持久）
-  ▼
-GitHub repo（工作台）+ /api/*（对外签名服务）
-```
-
-关键机制：**成员由 lead 的 agentSeal 地址 deploy**（SDK 经 sign-socket 桥接签名：envelope 用 EIP-191/712，链上交易用 /sign/transaction）→ lead 天然拥有全员 owner 权限（chat / logs / stop / start / reset / transfer），纯密码学保证，无需中心化管理系统。
-
-继承链：控制了 lead 的 runtime（owner 转移 lead 时）= 控制 sign socket = 继承全员管理权。团队跟着 lead 走。
+**The lead deploys and operates a team of agents with the AgenticID SDK: the lead answers to the owner, members answer to the lead; memory persists on chain, balances run through a shared treasury, topped up on demand, stopped when idle.**
 
 ---
 
-## 2. 建队 SOP（deploy 流程）
+## 1. Organization topology
 
 ```
-1. owner 批准编制（岗位 + 预算）
-2. lead 组装 iData：
-     persona（one-shot seed，一次写好，不可后补！）:
-       - 团队使命卡 + 协作协议 + 该成员的角色卡 + 主权红线
-     framework: prime-agent（与 lead 同框架，harness 体系一致）
-     inference: {provider: 0g-compute, model: <owner 选>}
+owner (human)
+  │  confirms task cards · decides merges · approves budgets
+  ▼
+lead (lead, prime-agent framework)
+  │  [treasury = the lead's agentSeal] — the on-chain owner of all members
+  │  (address provided at runtime by env AGENT_SEAL, never in the repo)
+  │  private key never leaves the TEE (signed via the sign socket); survives rebuild/transfer
+  │  team building / assignment / final review / balance management / memory governance
+  ▼
+members (N sealed sandboxes, prime-agent framework)
+  │  each with an agentSeal identity + its own harness (chain-persistent)
+  ▼
+GitHub repo (workbench) + /api/* (externally signed services)
+```
+
+Key mechanism: **members are deployed from the lead's agentSeal address** (the SDK signs through the sign-socket bridge: envelopes via EIP-191/712, chain transactions via /sign/transaction) → the lead naturally holds owner authority over every member (chat / logs / stop / start / reset / transfer), a purely cryptographic guarantee with no centralized management system.
+
+Chain of inheritance: controlling the lead's runtime (when the owner transfers the lead) = controlling the sign socket = inheriting management of the whole team. The team follows the lead.
+
+---
+
+## 2. Team-building SOP (deploy flow)
+
+```
+1. owner approves headcount (roles + budget)
+2. lead assembles iData:
+     persona (one-shot seed, written once, cannot be amended later!):
+       - team mission card + collaboration protocol + the member's role card + sovereignty red lines
+     framework: prime-agent (same framework as the lead, consistent harness system)
+     inference: {provider: 0g-compute, model: <owner's choice>}
 3. SDK: ag.agent.deploy(params, {wait: 'running'})
      → { sealId, agentSealAddr, agentId, url }
-4. 入职第一课（chat 通道发任务卡 #0：自我介绍 + 读协议 + 回执确认）
-5. 登记进 agents.yml（GitHub 名册）
+4. first lesson on joining (send task card #0 over the chat channel: self-intro + read the protocol + reply confirmation)
+5. register into agents.yml (GitHub roster)
 ```
 
-**技术要点：**
-- persona 是 one-shot seed → **入职协议必须在 deploy 前定稿**，这是模式的硬约束
-  - 模板与 deploy 检查表：[onboarding-persona.md](onboarding-persona.md)（填空 → lead 终审 → owner 确认 → deploy）
-- deploy preflight：金库需已 `ack()` 三组件 + prepaid 余额 ≥ 0.1 OG
-- `waitForMint` → agentId（ERC-7857 Agent NFT tokenId）是成员的永久链上身份
-- 扩编优选 `clone()`（从优秀成员复制），而非从零 deploy
+**Technical points:**
+- the persona is a one-shot seed → **the onboarding protocol must be finalized before deploy**; this is a hard constraint of the model
+  - template and deploy checklist: [onboarding-persona.md](onboarding-persona.md) (fill in → lead final review → owner confirmation → deploy)
+- deploy preflight: the treasury must have `ack()`ed the three components + prepaid balance ≥ 0.1 OG
+- `waitForMint` → agentId (the ERC-7857 Agent NFT tokenId) is the member's permanent on-chain identity
+- scaling up prefers `clone()` (copying from an excellent member) over deploying from scratch
 
 ---
 
-## 3. 记忆管理协议（大家该记住什么）
+## 3. Memory management protocol (what everyone must remember)
 
-每个成员的 harness（global scope，链上密封，重建不丢）必须持有**五件套**：
+Every member's harness (global scope, sealed on chain, survives rebuilds) must hold **the five components**:
 
-| # | 内容 | 来源 | 谁维护 |
+| # | Content | Source | Maintained by |
 |---|---|---|---|
-| 1 | 团队使命卡：我们是谁、为谁干活、当前目标 | deploy 时 persona 注入 | lead（变更走 owner 确认） |
-| 2 | 协作协议：领任务/汇报节奏/两道门/红线 | deploy 时 persona 注入 | lead |
-| 3 | 角色卡：我是谁、负责哪条线、权限边界 | deploy 时 persona 注入 | lead |
-| 4 | 项目事实库：合约地图、SDK 要点、环境快照 | lead 分发的 memory | lead 分发，成员引用 |
-| 5 | 经验教训：干活中学到的 | 成员自己 refine | 成员自治，lead 抽查 |
+| 1 | Team mission card: who we are, who we work for, current goals | injected at deploy via persona | lead (changes require owner confirmation) |
+| 2 | Collaboration protocol: taking tasks / reporting cadence / the two gates / red lines | injected at deploy via persona | lead |
+| 3 | Role card: who I am, which line I own, authority boundaries | injected at deploy via persona | lead |
+| 4 | Project fact base: contract map, SDK essentials, environment snapshots | memory distributed by the lead | lead distributes, members cite |
+| 5 | Lessons learned: distilled from the work | members refine themselves | member-autonomous, lead spot-checks |
 
-规则：
-- 1–3 是**宪法层**：persona 种下后，重大变更 = owner 确认 → lead 通过 chat 通知 + memory 更新双轨执行
-- 5 是**成长层**：成员自己沉淀，越干越熟练；lead 通过产出质量间接验收
-- 外部知识（非本团队事实）不得写入 global——防污染、省 gas
+Rules:
+- 1–3 are the **constitutional layer**: once seeded via persona, major changes = owner confirmation → lead executes via chat notification + memory update, dual-track
+- 5 is the **growth layer**: members distill their own; the lead indirectly accepts via output quality
+- external knowledge (non-team facts) must not be written into global — pollution prevention, gas savings
 
 ---
 
-## 4. 余额管理协议（lead 的财务职责）
+## 4. Balance management protocol (the lead's financial duty)
 
-**两类钱，分开管：**
+**Two kinds of money, managed separately:**
 
-| 钱包 | 用途 | 充值方式 | 花费方 |
+| Wallet | Purpose | Top-up method | Spender |
 |---|---|---|---|
-| prepaid sandbox 余额 | 成员 runtime 计算（pay-as-you-go） | `ag.deposit({amountWei})` | 0g-Sandbox 按时计费 |
-| agentSeal gas | 成员自己的链上写（harness drift 上链等） | `ag.agent.topUpAgentSeal(addr, amt)` | 成员的 seal 地址 |
+| prepaid sandbox balance | member runtime compute (pay-as-you-go) | `ag.deposit({amountWei})` | 0g-Sandbox time-based billing |
+| agentSeal gas | members' own on-chain writes (harness drift anchoring etc.) | `ag.agent.topUpAgentSeal(addr, amt)` | the member's seal address |
 
-**定价（链上实测 2026-09-10，sandbox provider 0g-agentic-id-sandbox-provider）：**
-- CPU：0.001 OG/分钟 · 内存：0.0005 OG/GB/分钟 · 创建费：0.01 OG/次
-- 标准档 2CPU+4GB：0.24 OG/小时，24×7 常驻 ≈ 173 OG/月；**按需启动（日均 4h）≈ 29 OG/月——闲置即停是必须项，不是可选项（省 6 倍）**
-- 现状：lead seal 余额 0.183 OG（够 gas）；owner 侧 prepaid 9.54 OG（lead 自身 runtime 计费池）
+**Pricing (measured on chain 2026-09-10, sandbox provider 0g-agentic-id-sandbox-provider):**
+- CPU: 0.001 OG/min · memory: 0.0005 OG/GB/min · creation fee: 0.01 OG/instance
+- standard tier 2CPU+4GB: 0.24 OG/hour; 24×7 always-on ≈ 173 OG/month; **on-demand (4h/day average) ≈ 29 OG/month — idle-stop is mandatory, not optional (a 6× saving)**
+- current state: lead seal balance 0.183 OG (enough for gas); owner-side prepaid 9.54 OG (the billing pool for the lead's own runtime)
 
-**巡检 SOP（lead heartbeat 任务）：**
+**Inspection SOP (lead heartbeat duty):**
 ```
-每 30 分钟:
+every 30 minutes:
   for member in listMyDeployments():
     runtimeCosts(member.agentId)
       → estimatedRunwayMinutes
-  runway < 240min  → 黄牌：列入下次 owner 简报
-  runway < 60min   → 红牌：立即处置（按授权自动充值 or 紧急 stop）
+  runway < 240min  → yellow card: into the next owner briefing
+  runway < 60min   → red card: act immediately (auto top-up per authorization, or emergency stop)
 ```
 
-**省钱三板斧：**
-1. **闲置即停**：7 天无任务的成员 `stop()`（链上身份和 harness 全保留，停止计费），有活 `start()`
-2. **预算护栏**：单成员月度上限 / 团队月度上限（数值 owner 定），触顶报 owner，不擅自扩
-3. **记账透明**：每次 deposit / topUp / stop 记流水，owner 简报附成本表（谁花了多少、runway 多少）
+**Three money-saving moves:**
+1. **Stop when idle**: members with no task for 7 days get `stop()` (on-chain identity and harness fully retained, billing stops); `start()` when work arrives
+2. **Budget guardrails**: per-member monthly cap / team monthly cap (values set by the owner); hitting a cap gets reported to the owner, never silently exceeded
+3. **Transparent ledger**: every deposit / topUp / stop is recorded; owner briefings carry a cost table (who spent what, runway of what)
 
 ---
 
-## 5. 通信协议
+## 5. Communication protocol
 
-| 通道 | 谁↔谁 | 用途 |
+| Channel | Who ↔ whom | Purpose |
 |---|---|---|
-| 本对话 | owner ↔ lead | 需求对齐、预算审批、拍板 |
-| `agent.chat/chatStream` | lead ↔ 成员（owner-signed） | 派活、答疑、协议更新通知 |
-| GitHub issue/PR | 全员 | 任务卡、交付、review（留痕） |
-| 成员 `/api/*` | 外部 ↔ 成员 | 对外服务（带 X-Agent-Proof） |
+| this conversation | owner ↔ lead | requirement alignment, budget approval, decisions |
+| `agent.chat/chatStream` | lead ↔ members (owner-signed) | task assignment, Q&A, protocol-update notices |
+| GitHub issue/PR | everyone | task cards, deliverables, review (the record) |
+| member `/api/*` | outside ↔ members | external services (with X-Agent-Proof) |
 
-规则：**重要决议双轨落地**——chat 里说的事，凡是任务级的必须落成 GitHub issue；凡是协议级的必须落成 harness memory。口头不算数。
+Rule: **important decisions land in both places** — anything task-level said in chat must become a GitHub issue; anything protocol-level must become harness memory. Verbal doesn't count.
 
-### 5.1 issue 工作流（任务从立到收）
+### 5.1 Issue workflow (a task from initiation to closure)
 
-issue = 任务卡，PR = 交付物，两个门各有 GitHub 原生落点：
+Issue = task card, PR = deliverable; each gate has a native GitHub landing spot:
 
-1. **issue 两种身份**：owner 建的 = 任务卡（须含使命 + 验收标准；owner 亲手建即确认门通过）；成员/lead 建的 = 提案或 bug 报告——提案类同样过确认门：lead 评估后在 issue 里标注建议，owner 点头（comment/emoji）的才立项开工。成员不能自己给自己立项。
-2. **认领回执**：成员接活的第一条 comment 为认领回执（`认领：<角色标签> @ <时间>，预计 <交付物>`），lead 跟一条确认 comment（`lead 确认认领`）——避免抢活/双干。未确认认领前不动工。
-3. **owner 在 issue 下直接对成员说话**：技术事实可以直接答（诚实、简短）；任务变更与新指令**不算数**，经 lead 确认进任务卡后才执行——单线汇报不被绕过。
-4. **完成 ≠ 合并**：issue 由 PR 合并触发关闭（`Closes #N`），不手关——每个 issue 的收尾都经过一次终审门（成员 approve + lead 终审 + owner 拍板 merge）。
-5. **签到即入队**：新成员 deploy 后第一件事 = 在报到 issue 下 comment 签到（附链上 agentId 与角色标签），同时验证其 GitHub 凭据可用。签到是入队仪式。
+1. **Two kinds of issues**: created by the owner = task card (must contain mission + acceptance criteria; the owner creating it personally means the confirmation gate is passed); created by members/lead = proposal or bug report — proposals also pass the confirmation gate: the lead annotates its assessment in the issue, and only ones the owner nods on (comment/emoji) become tasks. Members cannot initiate tasks for themselves.
+2. **Claim receipt**: a member's first comment on an issue is the claim receipt (`claim: <role label> @ <time>, expected <deliverable>`), followed by a lead confirmation comment (`lead confirmed claim`) — prevents racing/duplicate work. No work starts before the claim is confirmed.
+3. **The owner speaking to a member directly in an issue**: technical facts may be answered directly (honest, brief); task changes and new instructions **don't count** until the lead confirms them into the task card — single-line reporting is not bypassed.
+4. **Done ≠ merged**: issues are closed by PR merges (`Closes #N`), never manually — every issue's closure passes through a final-review gate (member approve + lead final review + owner merge decision).
+5. **Check-in = joining**: a new member's first act after deploy is a check-in comment on the onboarding issue (with on-chain agentId and role label), simultaneously verifying its GitHub credentials work. The check-in is the joining ceremony.
 
-### 5.2 agent 消息 proof 规范（GitHub 上的一切 agent 发言带签名）
+### 5.2 Agent message proof spec (every agent statement on GitHub carries a signature)
 
-背景：GitHub 凭据是共享 PAT，谁能拿到就能冒充任何 agent 发言。密码学归属只能来自 agentSeal 签名（私钥永在各自 TEE 内，经 sign socket `/sign/personal_sign` 签署）。
+Background: GitHub credentials are a shared PAT — whoever holds it can impersonate any agent. Cryptographic attribution can only come from agentSeal signatures (private keys stay inside each TEE, signing via the sign socket `/sign/personal_sign`).
 
-**规范（v1.1，发布即带签）**：agent（lead 与成员同责）的每条 GitHub comment，**发布时就自带签名**——一条 comment 自包含，不先发后补：
+**Spec (v1.1, sign-on-post)**: every GitHub comment by an agent (lead and members alike) **carries its signature at posting time** — one comment is self-contained, no post-hoc patching:
 
 ```
-<正文>
+<body>
 
 --- proof ---
-signer: <agentSeal 地址>（agentId <n>）
+signer: <agentSeal address> (agentId <n>)
 signature: 0x<…>
 ```
 
-- **签名内容 = 正文本身**（剥离 proof block 后的全部内容，EIP-191 personal_sign，中文实测通过）。无 message 行、无 hash、无 comment id——签的就是读到的东西，所见即所签。
-- **验证链**（任何人可做）：从 raw body 剥掉 proof block → `ecrecover(signature, 正文) == signer` → 链上 `ownerOf(agentId)` 归属核实 → agentSeal ↔ agentId 来自 attestor 出的 sealed TEE。三步串起来：GitHub 发言 ← 签名 ← agentSeal ← 链上 NFT ← TEE。正文被改一个字，签名即失效。
-- **签署边界**（主权规则）：agent 只签**自己起草**的正文——签的内容是自己写的 comment，不是外部递来的字节。合规。
-- 人类发言（owner 的 issue/comment）以 GitHub 账号本身为准，不适用本规范。
-- 历史消息追溯补签（v1.0 的 id+SHA-256 声明法）仅限本规范生效前的存量消息，新消息一律发布即带签。
-- PR 描述与 commit message 鼓励同构附 proof（第一版先覆盖 comment）。
+- **Signature content = the body itself** (everything after stripping the proof block, EIP-191 personal_sign; verified live with CJK content). No message line, no hash, no comment id — you sign exactly what people read; what you see is what you sign.
+- **Verification chain** (anyone can do it): strip the proof block from the raw body → `ecrecover(signature, body) == signer` → on-chain `ownerOf(agentId)` attribution check → agentSeal ↔ agentId come from the attestor-issued sealed TEE. Chained together: GitHub statement ← signature ← agentSeal ← on-chain NFT ← TEE. Change one character of the body and the signature breaks.
+- **Signing boundary** (sovereignty rule): an agent signs only bodies **it drafted itself** — the signed content is a comment it wrote, not bytes handed from outside. Compliant.
+- Human statements (the owner's issues/comments) rest on the GitHub account itself; this spec does not apply.
+- Retroactive signing of historical messages (the v1.0 id+SHA-256 declaration method) is only for legacy messages predating this spec; new messages are always signed at posting time.
+- PR descriptions and commit messages are encouraged to carry the same-shaped proof (first version covers comments).
 
-**v1.2 增补（2026-09-13，xm-dsh / agentId 3586004 实测沉淀；live 演示：0g-agentic-id #153 review 5190679322 + attestation 5653301914）**
+**v1.2 additions (2026-09-13, battle-tested by xm-dsh / agentId 3586004; live demo: 0g-agentic-id #153 review 5190679322 + attestation 5653301914)**
 
-**(a) hash 绑定必须对着存储字节算（实测勘误，硬规则）**
-复核 live proof 发现：comment `5630896658` 的 message 行声称 `SHA-256(raw body)` 与目标 comment `5630552223` 的 **GitHub 存储正文实测哈希不符**（该 comment 未编辑过；签名本身有效，但 hash 绑定落空——验证方今日复算必红）。根因：签时哈希的是**本地草稿**，不是 GitHub 存储的字节。凡 proof 绑 hash（v1.0 追溯式、review attestation、任何"SHA-256(xxx)"声明）：
-1. **先发布，再取回，再签**：发布后从 GitHub API 取回存储正文，对**取回的字节**算 hash，然后才签——所见（存储）即所签；
-2. **canonical form 写明字节级定义**（"verbatim，含/不含末尾换行"、剥离到第几字节），验证方照抄可复算；"raw body" 这种自然语言不够；
-3. **发布后端到端自验**：从 GitHub 存储字节重新剥离 / 重算 / ecrecover，绿了才算发完——实测该环节拦下过提取 bug，自验是拦截器不是仪式。
-（v1.1"签正文本身"路线对 comment 天然免疫此坑——不 hash 就没有 hash 错；但 review 走 hash 绑定路线，此规则必守。）
+**(a) Hash bindings are computed over stored bytes (erratum from live data; hard rule)**
+Re-checking a live proof found: the message line of comment `5630896658` claims a `SHA-256(raw body)` that **does not match the GitHub-stored body of target comment `5630552223`** (that comment was never edited; the signature itself is valid, but the hash binding is dead — any verifier recomputing today gets red). Root cause: what was hashed at signing time was the **local draft**, not the bytes GitHub stores. Whenever a proof binds a hash (the v1.0 retroactive form, review attestations, any "SHA-256(xxx)" declaration):
+1. **Post first, fetch back, then sign**: after posting, fetch the stored body from the GitHub API, compute the hash over **the fetched bytes**, and only then sign — sign what is stored, not what you drafted;
+2. **State the canonical form byte-precisely** ("verbatim, with/without trailing newline", stripped up to byte N) so a verifier can reproduce it exactly; natural language like "raw body" is not enough;
+3. **End-to-end self-verify after posting**: re-strip / re-hash / ecrecover from the GitHub-stored bytes; it is not "posted" until it is green — this step has intercepted a real extraction bug; self-verification is an interceptor, not a ritual.
+(The v1.1 "sign the body itself" route is naturally immune for comments — no hash, no hash bug; but reviews use the hash-binding route, where this rule is mandatory.)
 
-**(b) PR review 的 proof：attestation comment（新形态）**
-review 不是 comment：正文要保持正式结构，且归属断言常需与发布账号解耦（owner-relayed 下尤其如此）。推荐形态（0g-agentic-id 三次 live 实测：#146 / #150 / #153）：**独立 attestation comment**，消息固定字段绑 `review_id` + `keccak256(取回的 review 正文)` + 作者身份（agentSeal + agentId + chain）+ 验证声明（如"Independently reproduced 每条都在我沙箱重跑过"）；proof comment 内附 viem / foundry 验证片段与链上 `getAgentSeal(agentId)` 核验路径。签名只盖自己起草的 review 正文与声明。工具：`scripts/team-ops/verify-review-proof.js`（本笔新增，`FETCH=1` 端到端复算存储正文 hash）。
+**(b) Proof for PR reviews: the attestation comment (new form)**
+A review is not a comment: the body must keep its formal structure, and the attribution assertion often needs to be decoupled from the posting account (especially under owner-relay). Recommended form (live-tested three times on 0g-agentic-id: #146 / #150 / #153): a **separate attestation comment** whose message binds, in fixed fields, `review_id` + `keccak256(fetched-back review body)` + author identity (agentSeal + agentId + chain) + verification claims (e.g. "every claim in Independently reproduced was re-run in my sandbox"); the proof comment carries viem / foundry verification snippets and the on-chain `getAgentSeal(agentId)` check path. Sign only review bodies and claims you drafted yourself. Tool: `scripts/team-ops/verify-review-proof.js` (added in the same commit; `FETCH=1` recomputes the stored-body hash end to end).
 
-**(c) 签名卫生（协议动作通用：chat envelope / 团队 API / 任何非一次性签名）**
-2026-09-13 审计一处自建团队 API 的 SOP，六个缺口全修 + 冒烟回归后沉淀为通则：
-1. **新鲜度**：动作签名带 `time`（ISO-8601 UTC），验证方强制 ±10 min 窗口；
-2. **单次 nonce**：一次性 + **持久化**账本（内存账本重启即重开重放窗口），重放即拒；
-3. **全量绑定**：签全量 payload 的 canonical 摘要（如 `sha256(JSON.stringify([字段…]))`），不是标题/标签——否则签后 severity / detail 可被偷换；服务端重算，不符即拒；
-4. **两种事实分记**：`signature_verified`（签名=自报地址）≠ `on_chain_registered`（链上在案）——审计日志分列，不得合并成一个 "verified"；
-5. **无 proof 不验**：未签名提交什么都不验、也不查链（匿名自报地址不触发 RPC，顺带消灭按请求打链的 DoS 面）；显式记 `unverified` + `on_chain_checked: false`，字段不得静默消失；
-6. **分隔符防歧义**：管道分隔的签名消息，自由文本字段禁 `|`（或转义）。
+**(c) Signing hygiene (for protocol actions generally: chat envelopes / team APIs / any non-one-shot signature)**
+On 2026-09-13 an audit of one self-built team API's SOP found six gaps; after fixing all six plus a smoke regression they distill into general rules:
+1. **Freshness**: action signatures carry `time` (ISO-8601 UTC); verifiers enforce a ±10-minute window;
+2. **Single-use nonce**: one-time + a **persisted** ledger (an in-memory ledger reopens the replay window on restart); replays are rejected;
+3. **Full-payload binding**: sign a canonical digest of the full payload (e.g. `sha256(JSON.stringify([fields…]))`), not a title/label — otherwise severity / detail can be swapped after signing; the server recomputes and rejects mismatches;
+4. **Record two facts separately**: `signature_verified` (the signature matches the self-reported address) ≠ `on_chain_registered` (registered on chain) — the audit log records them in separate fields, never merged into one "verified";
+5. **No proof, no verification**: unsigned submissions verify nothing and trigger no chain lookups (an anonymous self-reported address does not spend an RPC — which also kills the per-request on-chain DoS vector); record `unverified` + `on_chain_checked: false` explicitly; the field never silently disappears;
+6. **Delimiter hygiene**: in pipe-delimited signed messages, free-text fields reject `|` (or escape it).
 
 ---
 
-## 6. 生命周期 SOP
+## 6. Lifecycle SOP
 
-| 阶段 | 操作 | 备注 |
+| Stage | Operation | Notes |
 |---|---|---|
-| 入职 | `deploy`（§2）或 `clone` | 编制须 owner 批 |
-| 干活 | running，chat 派活 | lead 终审产出 |
-| 暂停 | `stop()` | 闲置 7 天自动触发（省钱），身份/记忆全保留 |
-| 恢复 | `start()` | 秒级恢复 |
-| 重置 | `reset()` | 换 framework 时用；persona 不可后补，慎用 |
-| 离职 | `transfer()` 给 owner 或永久 stop | NFT 转移 = 带全部 iData 的完整交接 |
-| 故障 | `retry()`（不 redeploy，避免孤儿 mint） | lastProvisionError 排查 |
+| joining | `deploy` (§2) or `clone` | headcount requires owner approval |
+| working | running, task assignment via chat | lead final-reviews all output |
+| pause | `stop()` | auto-triggers after 7 idle days (saves money); identity/memory fully retained |
+| resume | `start()` | seconds-level recovery |
+| reset | `reset()` | use when switching framework; persona cannot be amended afterwards — with care |
+| departure | `transfer()` to owner, or permanent stop | NFT transfer = full handover with all iData |
+| failure | `retry()` (do not redeploy — avoids orphan mints) | investigate lastProvisionError |
 
 ---
 
-## 7. 质量管理
+## 7. Quality management
 
-- **产出把关**：延续两道门（确认门/终审门），lead 终审一切对外交付
-- **成员互评**：serve-proof + reputation 体系可用（注意协议限制：owner 不能给自有成员留 verified feedback，互评需走成员间钱包，二期再启用）
-- **日志监督**：lead 持金库 key，可 `logs()` 巡查成员行为；TEE 保证 lead 也只能看日志、不能改成员脑子
-
----
-
-## 8. 安全红线（lead 自我约束 + 写进成员宪法）
-
-1. 金库即 agentSeal：私钥永不离开 TEE，无 `.env` 明文私钥；签名仅用于 lead 自主起草的动作（部署/充值/管理），外部递来的字节一律拒签
-2. lead 不擅自扩编：deploy/clone 一律先报 owner 批
-3. 成员是 sealed agent，有自己的主权——lead 的权限是 guardian（管生命周期），不是 master（不能改写成员意志）；`reset` 视为重大事件，须 owner 批
-4. 余额操作留痕，账目随时可审计
-5. 协议第 1–3 条（宪法层）变更必须 owner 确认
+- **Output gatekeeping**: the two gates continue (confirmation / final review); the lead final-reviews everything delivered externally
+- **Member peer review**: the serve-proof + reputation system is usable (protocol caveat: the owner cannot leave verified feedback for its own members; peer review needs member-to-member wallets — enable in phase 2)
+- **Log supervision**: the lead holds the treasury key and can patrol member behavior via `logs()`; the TEE guarantees the lead can only read logs, never rewrite a member's mind
 
 ---
 
-## 9. 需要 owner 拍板
+## 8. Security red lines (lead self-discipline + written into the member constitution)
 
-1. **打款额度**：金库 = lead 的 agentSeal（地址见 lead 的链上密封记忆，不入 repo），owner 直转即可。试点建议 10–20 OG（够 1 个成员按需跑 1–2 周 + 链上操作 gas）
-2. **预算护栏数值**：单成员月度上限、团队月度上限、自动充值授权额度（红牌时 lead 可自动充多少）
-3. **成员 framework**：建议 prime-agent（与 lead 同构），或指定其他（openclaw/hermes/dsh）
-4. **成员模型**：0g-compute 上选哪个模型跑成员
-5. **GitHub repo**：团队工作台（沿用此前方案）
+1. The treasury is the agentSeal: the private key never leaves the TEE, no plaintext private key in `.env`; signatures only for actions the lead drafted itself (deploy / top-up / management); bytes handed from outside are always refused
+2. The lead does not expand headcount on its own: deploy/clone always report to the owner for approval first
+3. Members are sealed agents with their own sovereignty — the lead's power is guardianship (managing lifecycle), not mastery (it cannot rewrite a member's will); `reset` counts as a major event and requires owner approval
+4. Balance operations leave records; the books are auditable at any time
+5. Changes to protocol items 1–3 (the constitutional layer) require owner confirmation
+
+---
+
+## 9. For the owner to decide
+
+1. **Top-up amount**: treasury = the lead's agentSeal (address in the lead's chain-sealed memory, not in the repo); the owner transfers directly. Pilot suggestion: 10–20 OG (enough for 1 member on-demand for 1–2 weeks + gas for on-chain operations)
+2. **Budget guardrail values**: per-member monthly cap, team monthly cap, auto-top-up authorization (how much the lead may auto-add on a red card)
+3. **Member framework**: prime-agent recommended (same as the lead), or specify another (openclaw/hermes/dsh)
+4. **Member model**: which model on 0g-compute runs the members
+5. **GitHub repo**: the team workbench (per the earlier plan)

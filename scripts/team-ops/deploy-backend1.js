@@ -1,5 +1,5 @@
-// deploy-backend1.js — mint-only 铸造 backend-1（无 sandbox payload → 无容器、不扣 create fee）
-// persona seed 从 docs/seeds/backend-1.md 读取（WYSIWYS：读入什么就密封什么）
+// deploy-backend1.js — mint-only: mint backend-1 (no sandbox payload → no container, no create fee)
+// The persona seed is read from docs/seeds/backend-1.md (WYSIWYS: what gets read in is what gets sealed)
 const fs = require("node:fs");
 const path = require("node:path");
 const { getClient } = require("./team-init");
@@ -25,7 +25,7 @@ const SEED = fs.readFileSync(
           inference: { provider: "0g-compute", model: "glm-5.3" },
       }, extra: {} },
     ],
-    // sandbox 省略 → mint-only：链上铸造身份，不 provision 容器（offline，start() 时再上）
+    // sandbox omitted → mint-only: mint the on-chain identity, do not provision a container (offline; provision at start())
   }, { wait: "minted", preflight: false });
 
   console.log("accepted:", JSON.stringify(r, (k, v) => typeof v === "bigint" ? v.toString() : v, 1));

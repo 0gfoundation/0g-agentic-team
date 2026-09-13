@@ -1,4 +1,4 @@
-// verify-proof.js — 独立验证 agentSeal EIP-191 proof
+// verify-proof.js — standalone verification of an agentSeal EIP-191 proof
 const { verifyMessage } = require("viem");
 const [,, addr, msgFile, sig] = process.argv;
 const fs = require("node:fs");

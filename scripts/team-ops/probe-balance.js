@@ -1,4 +1,4 @@
-// probe-balance.js — provider 真实余额（owner-signed envelope，经 TEE 桥）
+// probe-balance.js — provider-side true balance (owner-signed envelope, via the TEE bridge)
 const { getClient } = require("./team-init");
 
 (async () => {
@@ -6,7 +6,7 @@ const { getClient } = require("./team-init");
   try {
     const b = await ag.getBalanceDetail ? await ag.getBalanceDetail() : null;
   } catch {}
-  // attestor.getEffectiveBalance 暴露在 AgenticID 上吗？直接试两个名字
+  // is attestor.getEffectiveBalance exposed on the AgenticID facade? just probe both names
   for (const name of ["getEffectiveBalance", "getBalanceDetail"]) {
     if (typeof ag[name] === "function") {
       try {
@@ -17,7 +17,7 @@ const { getClient } = require("./team-init");
       console.log(name + ": (not on facade)");
     }
   }
-  // 内部路径兜底：直接走 attestor client
+  // internal-path fallback: go straight through the attestor client
   const cfg = await fetch("https://agenticid-mainnet.0g.ai/config").then(r => r.json());
   console.log("sandbox_endpoint:", cfg.sandbox_endpoint);
 })().catch(e => { console.error("FATAL:", e.message); process.exit(1); });

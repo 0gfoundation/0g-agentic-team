@@ -2,14 +2,14 @@
  "name": "team-ops",
  "private": true,
  "version": "0.1.0",
- "description": "0g-agentic-team lead 工具链：viem Account 桥 TEE sign socket + AgenticID SDK",
+ "description": "0g-agentic-team lead toolchain: viem Account bridge to the TEE sign socket + AgenticID SDK",
  "scripts": {
   "init": "node team-init.js",
   "ack": "node do-ack.js",
   "balance": "node probe-balance.js",
+  "deploy:backend1": "node deploy-backend1.js",
   "verify:proof": "node verify-proof.js",
-  "verify:review": "node verify-review-proof.js",
-  "deploy:backend1": "node deploy-backend1.js"
+  "verify:review": "node verify-review-proof.js"
  },
  "dependencies": {
   "@0gfoundation/0g-agenticid-sdk": "^0.1.4",

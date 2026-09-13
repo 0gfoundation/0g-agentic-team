@@ -1,10 +1,12 @@
-"""Agent Team 运营工具箱（0G AgenticID lead 用）.
+"""Agent Team ops toolbox (for the 0G AgenticID lead).
 
-v0.1 只读：环境快照 / 链上定价 / 成本模型 / 余额巡检 / 名册。
-写操作（deploy/stop/deposit/topUp）留待 v0.2 sign-socket 桥接。
+v0.1 read-only: environment snapshot / on-chain pricing / cost model /
+balance checks / roster. Write operations (deploy/stop/deposit/topUp)
+wait for the v0.2 sign-socket bridge.
 
-I/O 全部为同步阻塞（httpx sync client）——kernel 日常调用可接受；
-重度批量轮询时注意会卡事件循环（v0.2 换 AsyncClient）。
+All I/O is synchronous and blocking (httpx sync client) — acceptable for
+day-to-day kernel calls; heavy batch polling will stall the event loop
+(switch to AsyncClient in v0.2).
 """
 
 from __future__ import annotations
@@ -16,9 +18,9 @@ from typing import Any
 
 import httpx
 
-# ── 主网常量（offline fallback；source of truth = attestor /config） ────────
-# 注意：serving/provider/batcher 等地址可能随重新部署漂移，
-# 运行时以 _contracts()（GET /config）为准，这里只是断网 fallback。
+# ── mainnet constants (offline fallback; source of truth = attestor /config) ──
+# Note: serving/provider/batcher addresses may drift across redeployments;
+# at runtime trust _contracts() (GET /config); these are only an offline fallback.
 ATTESTOR = "https://agenticid-mainnet.0g.ai"
 RPC = "https://evmrpc.0g.ai"
 CHAIN_ID = 16661
@@ -36,11 +38,12 @@ FALLBACK = {
     "sandbox_endpoint": "https://art-mainnet.0g.ai",
 }
 
-# 函数 selector（keccak 实测验证；4byte 有错条目，勿信）
+# function selectors (verified against locally computed keccak;
+# 4byte has wrong entries — do not trust it)
 SEL_SERVICES = "0x6d966d01"        # services(address)
 SEL_GET_BALANCE = "0xd4fac45d"     # getBalance(address,address)
 
-# 名册默认位置（repo 0g-agentic-team 检出后）
+# default roster locations (after checking out the 0g-agentic-team repo)
 DEFAULT_ROSTER = [
     "~/0g-agentic-team/agents.yml",
     "~/.prime/agent/0g-agentic-team/agents.yml",
@@ -50,7 +53,7 @@ _og = lambda wei: wei / 1e18  # noqa: E731
 
 _config_cache: dict | None = None
 _config_ts: float = 0.0
-_CONFIG_TTL = 300.0  # /config 缓存 5 分钟
+_CONFIG_TTL = 300.0  # /config cached for 5 minutes
 
 
 def _rpc(method: str, params: list) -> Any:
@@ -67,18 +70,19 @@ def _pad(addr: str) -> str:
 
 
 def seal_address() -> str:
-    """金库地址 = lead 的 agentSeal。仅从 env 读取（真实身份信息不入 repo）。"""
+    """Treasury address = the lead's agentSeal. Read from env only (real identity data never enters the repo)."""
     addr = os.environ.get("AGENT_SEAL")
     if not addr:
-        raise RuntimeError("AGENT_SEAL 未设置（sealed runtime 内自动注入）")
+        raise RuntimeError("AGENT_SEAL not set (auto-injected inside a sealed runtime)")
     return addr
 
 
-# ── attestor / 合约地址 source of truth ────────────────────────────────
+# ── attestor / contract addresses: source of truth ─────────────────────
 def attestor_config(refresh: bool = False) -> dict:
-    """GET /config —— SDK 的环境入口（合约地址表 + frameworks）。
+    """GET /config — the SDK's environment entry point (contract address table + frameworks).
 
-    合约地址以此为准；模块常量 FALLBACK 仅在 attestor 不可达时兜底。
+    Contract addresses are authoritative here; the module FALLBACK constants
+    only catch the case where the attestor is unreachable.
     """
     global _config_cache, _config_ts
     now = time.time()
@@ -91,7 +95,7 @@ def attestor_config(refresh: bool = False) -> dict:
 
 
 def _contracts(key: str) -> str:
-    """取合约地址：/config 优先，失败回落 FALLBACK 常量。"""
+    """Resolve a contract address: /config first, FALLBACK constant on failure."""
     try:
         v = attestor_config().get(key)
         if isinstance(v, str) and v.startswith("0x"):
@@ -101,15 +105,15 @@ def _contracts(key: str) -> str:
     return FALLBACK[key]
 
 
-# ── 链上读 ─────────────────────────────────────────────────────────────
+# ── on-chain reads ──────────────────────────────────────────────────────
 def seal_balance(address: str | None = None) -> float:
-    """agentSeal 地址的 native 余额（OG）。"""
+    """Native balance (OG) of an agentSeal address."""
     addr = address or seal_address()
     return _og(int(_rpc("eth_getBalance", [addr, "latest"]), 16))
 
 
 def _decode_services(raw: str) -> dict:
-    """decode services() 返回（纯函数，可离线测）。"""
+    """Decode a services() return value (pure function, testable offline)."""
     b = bytes.fromhex(raw[2:])
     url_off = int.from_bytes(b[0:32], "big")
     appid_off = int.from_bytes(b[32:64], "big")
@@ -127,11 +131,11 @@ def _decode_services(raw: str) -> dict:
 
 
 def _decode_getbalance(raw: str) -> dict:
-    """decode getBalance() 三元组（纯函数，可离线测）。"""
+    """Decode the getBalance() triple (pure function, testable offline)."""
     h = raw[2:]
     v = [int(h[i * 64:(i + 1) * 64], 16) for i in range(3)]
     return {"balance_og": _og(v[0]), "pending_refund_og": _og(v[1]),
-            "refund_unlock_at": v[2]}  # unix timestamp，非 block（SDK: refundUnlockAt）
+            "refund_unlock_at": v[2]}  # unix timestamp, not block (SDK: refundUnlockAt)
 
 
 def _services() -> dict:
@@ -141,15 +145,16 @@ def _services() -> dict:
 
 
 def pricing() -> dict:
-    """SandboxServing.services() 链上定价（OG）。"""
+    """SandboxServing.services() on-chain pricing (OG)."""
     return _services()
 
 
 def prepaid_balance(user: str | None = None) -> dict:
-    """SandboxServing.getBalance(user, provider) → 三元组（OG）。
+    """SandboxServing.getBalance(user, provider) → the triple (OG).
 
-    链上余额不含链下未结算费用（off-chain accrual）——乐观上界。
-    真实可用额度以 provider /api/balance 的 available 为准（v0.2 接入）。
+    The on-chain balance excludes off-chain unsettled costs — an optimistic
+    upper bound. For truly-available credit trust provider /api/balance's
+    available figure (wired in v0.2).
     """
     u = user or seal_address()
     data = SEL_GET_BALANCE + _pad(u) + _pad(_contracts("sandbox_provider_addr"))
@@ -159,16 +164,16 @@ def prepaid_balance(user: str | None = None) -> dict:
 
 def cost_model(cpu: float = 2.0, mem_gb: float = 4.0,
                hours_per_day: float = 4.0) -> dict:
-    """成员成本模型：常驻 vs 按需。默认档 2CPU+4GB（标准沙箱规格）。"""
+    """Member cost model: always-on vs on-demand. Default tier 2CPU+4GB (standard sandbox spec)."""
     p = _services()
     per_min = cpu * p["cpu_per_min_og"] + mem_gb * p["mem_gb_per_min_og"]
     active_month_min = hours_per_day * 60 * 30
     if hours_per_day >= 23.5:
-        note = "常驻档：无闲置节省空间"
+        note = "always-on tier: no idle savings to be had"
     elif hours_per_day > 0:
-        note = f"闲置即停省 ~{24 / hours_per_day:.0f}x"
+        note = f"idle-stop saves ~{24 / hours_per_day:.0f}x"
     else:
-        note = "纯按需（0 常驻）"
+        note = "pure on-demand (0 always-on)"
     return {"spec": {"cpu": cpu, "mem_gb": mem_gb, "hours_per_day": hours_per_day},
             "og_per_min": round(per_min, 9),
             "og_per_hour": round(per_min * 60, 6),
@@ -180,11 +185,12 @@ def cost_model(cpu: float = 2.0, mem_gb: float = 4.0,
 
 
 def runway(cpu: float = 2.0, mem_gb: float = 4.0) -> dict:
-    """金库 prepaid 余额能撑多少分钟 runtime。
+    """How many minutes of runtime the treasury's prepaid balance buys.
 
-    ⚠️ 乐观上界：链上 getBalance 不含链下未结算费用（testnet 实测曾
-    高估 25+ OG）。真实 runway 以 provider /api/balance.available 为准
-    （需 owner-signed envelope，v0.2 经 sign-socket 接入）。
+    ⚠️ Optimistic upper bound: the on-chain getBalance excludes off-chain
+    unsettled costs (once measured 25+ OG high on testnet). For true runway
+    trust provider /api/balance.available (needs an owner-signed envelope,
+    wired via the sign socket in v0.2).
     """
     bal = prepaid_balance()
     p = _services()
@@ -197,9 +203,9 @@ def runway(cpu: float = 2.0, mem_gb: float = 4.0) -> dict:
             "caveat": "optimistic upper bound; off-chain accrual not included"}
 
 
-# ── 名册 ───────────────────────────────────────────────────────────────
+# ── roster ──────────────────────────────────────────────────────────────
 def roster(path: str | None = None) -> list[dict]:
-    """解析 agents.yml 团队名册（结构模板；真实身份不入 repo）。"""
+    """Parse the agents.yml team roster (structural template; real identities never in the repo)."""
     import yaml
     candidates = [path] if path else DEFAULT_ROSTER
     for c in candidates:
@@ -207,12 +213,12 @@ def roster(path: str | None = None) -> list[dict]:
         if os.path.exists(p):
             data = yaml.safe_load(open(p, encoding="utf-8")) or {}
             return data.get("members", [])
-    raise FileNotFoundError("agents.yml 未找到，检查 repo 是否检出；或传 path=")
+    raise FileNotFoundError("agents.yml not found — check the repo checkout, or pass path=")
 
 
-# ── 快照与健康 ─────────────────────────────────────────────────────────
+# ── snapshot & health ───────────────────────────────────────────────────
 def check() -> dict:
-    """三点健康检查：attestor / RPC / SandboxServing 合约。"""
+    """Three-point health check: attestor / RPC / SandboxServing contract."""
     out: dict[str, Any] = {"chain_id": CHAIN_ID}
     try:
         cfg = attestor_config()
@@ -232,7 +238,7 @@ def check() -> dict:
 
 
 def env() -> dict:
-    """全环境快照：/config 合约地址表（source of truth）+ 双钱包余额。"""
+    """Full environment snapshot: /config contract address table (source of truth) + both wallet balances."""
     cfg = attestor_config()
     addr_keys = [k for k in FALLBACK if k.endswith("_addr")]
     return {"attestor": ATTESTOR,
@@ -243,11 +249,12 @@ def env() -> dict:
             "prepaid": prepaid_balance()}
 
 
-# ── run() 入口 ─────────────────────────────────────────────────────────
+# ── run() entry point ───────────────────────────────────────────────────
 async def run(action: str = "check", **kwargs: Any) -> Any:
-    """入口分发。action ∈ {check, env, config, pricing, cost-model,
-    runway, prepaid, balance, effective-balance, roster}。其余 kwargs 透传给对应函数。
-    注意：底层为同步 I/O，kernel 单次调用无碍，勿在 async 热路径里高频调用。
+    """Entry dispatch. action ∈ {check, env, config, pricing, cost-model,
+    runway, prepaid, balance, effective-balance, roster}. Other kwargs pass through to the target function.
+    Note: the underlying I/O is synchronous — fine for single kernel calls;
+    do not call at high frequency on async hot paths.
     """
     acts = {
         "check": check, "env": env, "config": attestor_config,
@@ -258,25 +265,28 @@ async def run(action: str = "check", **kwargs: Any) -> Any:
         "effective_balance": effective_balance,
     }
     if action not in acts:
-        raise ValueError(f"unknown action {action!r}; 可用: {sorted(acts)}")
+        raise ValueError(f"unknown action {action!r}; available: {sorted(acts)}")
     return acts[action](**kwargs)
 
 
 def effective_balance(ttl_sec: int = 180) -> dict:
-    """Provider 侧真实可用额度（v0.2）。走 sandbox provider 的 owner-signed
-    `GET /api/balance`——链上 prepaid 是乐观上界，这个数才反映 create/start
-    闸门实际执行的可用额度（链上 − 在途预留 − 未结算欠费 − 待结算 voucher）。
+    """Provider-side truly-available credit (v0.2). Goes through the sandbox
+    provider's owner-signed `GET /api/balance` — the on-chain prepaid figure
+    is an optimistic upper bound; this number reflects what the create/start
+    gates actually enforce (on-chain − in-flight reserves − unsettled debt −
+    pending settlement vouchers).
 
-    envelope 复刻 SDK AttestorClient.signEnvelope('balance', '', {}, ttl)：
-    canonical JSON（紧凑、字母序 key、provider 绑定防跨 provider 重放）经本 TEE
-    sign socket `/sign/personal_sign` 签署（私钥不出 TEE）。
+    The envelope replicates SDK AttestorClient.signEnvelope('balance', '', {}, ttl):
+    canonical JSON (compact, alphabetically sorted keys, provider-bound to
+    prevent cross-provider replay), signed through this TEE's sign socket
+    `/sign/personal_sign` (the private key never leaves the TEE).
     """
     import base64 as _b64
     import secrets as _secrets
     cfg = attestor_config()
     endpoint = cfg.get("sandbox_endpoint")
     if not endpoint:
-        raise RuntimeError("attestor /config 未提供 sandbox_endpoint，provider balance 不可用")
+        raise RuntimeError("attestor /config provides no sandbox_endpoint; provider balance unavailable")
     provider = cfg.get("sandbox_provider_addr") or cfg.get("provider") or ""
     canonical = json.dumps({
         "action": "balance",

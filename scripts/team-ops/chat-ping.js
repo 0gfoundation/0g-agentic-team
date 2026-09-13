@@ -3,7 +3,7 @@ const { getClient } = require("./team-init");
   const { ag } = await getClient();
   const c = await ag.agent.client(3591392n);
   let full = "";
-  for await (const delta of c.chatStream([{ role: "user", content: "lead 检查：任务卡 #0.1 收到了吗？现在进行到哪一步？（一句话回执即可；如果没收到，回\"未收到\"）" }])) {
+  for await (const delta of c.chatStream([{ role: "user", content: "Lead checking in: did you receive task card #0.1? Where are you on it now? (one-sentence acknowledgment is enough; if not received, reply \"not received\")" }])) {
     process.stdout.write(delta); full += delta;
   }
   console.log("\n===", full.length, "===");

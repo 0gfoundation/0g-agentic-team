@@ -1,37 +1,37 @@
 # 0g-agentic-team
 
-**一支有链上身份的 AI agent 团队**：lead 对 owner 负责，成员对 lead 负责。
-建在 [0G AgenticID](https://github.com/0gfoundation/0g-agentic-id) 之上——
-每个成员都是 Sealed Sandbox 里的 agent（ERC-7857 Agent NFT + TEE-held agentSeal 签名身份），
-记忆经 Prime Harness 链上密封，费用经金库统一管理。
+**An AI agent team with on-chain identity**: the lead answers to the owner, members answer to the lead.
+Built on [0G AgenticID](https://github.com/0gfoundation/0g-agentic-id) —
+every member is an agent running in a Sealed Sandbox (ERC-7857 Agent NFT + TEE-held agentSeal signing identity),
+memory is sealed on chain via Prime Harness, and costs are managed through a shared treasury.
 
-## 治理一句话
+## Governance in one sentence
 
-所有任务先由 lead 整理成任务卡与 owner 确认（**确认门**），才可立项开发；
-PR 攒够有身份成员的 approve 后由 lead 终审汇总（**终审门**），owner 拍板 merge。
-未经确认的任务，任何人（包括 lead）不得启动。
+Every task is first structured into a task card by the lead and confirmed with the owner (**confirmation gate**) before any work starts;
+a PR accumulates approvals from identified members, then the lead produces the final-review summary (**final-review gate**) and the owner decides the merge.
+No unconfirmed task may be started by anyone, including the lead.
 
-## 文档
+## Documents
 
-| 文档 | 内容 |
+| Document | Contents |
 |---|---|
-| [docs/operating-model.md](docs/operating-model.md) | 运营模式：组织拓扑、建队 SOP、记忆五件套、余额管理、生命周期 |
-| [docs/collab-plan.md](docs/collab-plan.md) | GitHub 协作工作流：两道门、review 纪律、入队绑定 |
-| [docs/agenticid-contract-map.md](docs/agenticid-contract-map.md) | AgenticID 主网合约地图（逆向侦察成果） |
+| [docs/operating-model.md](docs/operating-model.md) | Operating model: org topology, team-building SOP, the five memory components, balance management, lifecycle |
+| [docs/collab-plan.md](docs/collab-plan.md) | GitHub collaboration workflow: the two gates, review discipline, team-join binding |
+| [docs/agenticid-contract-map.md](docs/agenticid-contract-map.md) | AgenticID mainnet contract map (reverse-engineering recon) |
 
-## 名册
+## Roster
 
-[agents.yml](agents.yml) —— 成员名册的**结构模板**（字段定义 + 占位示例）。
-真实成员的 agentSeal/agentId 等身份信息由 lead 在运行时维护，**不入 repo**。
-新成员由 lead 用 AgenticID SDK 部署（链上身份由 attestor 出生证明背书）。
+[agents.yml](agents.yml) — the **structural template** for the member roster (field definitions + placeholder examples).
+Real members' agentSeal/agentId identity data is maintained by the lead at runtime and **never enters the repo**.
+New members are deployed by the lead with the AgenticID SDK (on-chain identity is backed by the attestor's birth certificate).
 
 ## skills/
 
-| Skill | 用途 |
+| Skill | Purpose |
 |---|---|
-| [agentic-team](skills/agentic-team/) | lead 运营工具箱：环境快照/链上定价/成本模型/runway 巡检/名册（Python） |
+| [agentic-team](skills/agentic-team/) | Lead ops toolbox: environment snapshot / on-chain pricing / cost model / runway checks / roster (Python) |
 
-## 成本速查（2026-09-10 链上实测；档位 2CPU+4GB）
+## Cost quick reference (measured on chain 2026-09-10; tier 2CPU+4GB)
 
-单价：CPU 0.001 OG/min · 内存 0.0005 OG/GB/min · 创建 0.01 OG/次
-2CPU+4GB：24×7 ≈ 173 OG/月；按需（日均 4h）≈ 29 OG/月 → **闲置即停是纪律**。
+Unit prices: CPU 0.001 OG/min · memory 0.0005 OG/GB/min · creation 0.01 OG/instance.
+2CPU+4GB: 24×7 ≈ 173 OG/month; on-demand (4h/day average) ≈ 29 OG/month → **idle time burns money; stopping when idle is discipline**.

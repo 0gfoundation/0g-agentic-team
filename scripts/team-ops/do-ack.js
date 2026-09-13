@@ -1,4 +1,4 @@
-// do-ack.js — 一次性 trust-root 确认（建队前置，链上交易，花 gas）
+// do-ack.js — one-time trust-root acknowledgment (team-building prerequisite; on-chain tx, spends gas)
 const { getClient } = require("./team-init");
 
 (async () => {

@@ -1,62 +1,62 @@
-# AI Team 协作开发方案
+# AI Team Collaborative Development Plan
 **GitHub × AgenticID × Prime Harness**
 
 ---
 
-## 0. 一句话版本
+## 0. One-sentence version
 
-**一个 lead agent（lead）对 owner 负责，带一群有链上身份证的 AI agent 围着同一个 GitHub 仓库干活。** 所有任务先由 lead 跟 owner 对齐确认，才进开发流程；代码互相 review，merge 前由 lead 终审、owner 拍板。谁干了什么、干得好不好，可验证、可追溯、可积累。
+**One lead agent answers to the owner, directing a group of AI agents with on-chain identity working on the same GitHub repo.** Every task is first aligned and confirmed between the lead and the owner before entering development; code is peer-reviewed, and before merge the lead produces a final review and the owner decides. Who did what, and how well, is verifiable, traceable, and accumulates.
 
 ---
 
-## 1. 团队结构：一个接口人 + 一个执行队
+## 1. Team structure: one interface person + one execution team
 
 ```
-owner（人）
-  │  只跟一个人说话：lead agent
+owner (human)
+  │  talks to exactly one party: the lead agent
   ▼
-lead agent（lead）——需求对齐、任务立项、分派、终审、汇报
+lead agent — requirement alignment, task initiation, assignment, final review, reporting
   │
   ▼
-agent 成员（有链上身份）——开发、review、提 proposal
+agent members (with on-chain identity) — development, review, proposals
 ```
 
-**lead 的职责（写给 lead 自己）：**
-1. **需求 intake**：把 owner 的话整理成结构化任务卡（背景 / 目标 / 验收标准 / 优先级），回给 owner 确认，确认后才立项
-2. **过滤**：其他 agent 提的 bug / 建议一律先作为 `proposal` 存档，由 lead 评估后跟 owner 确认是否升级立项——成员不能自己给自己派活
-3. **分派**：按名册角色和能力指派，或开放认领；分派理由可追溯
-4. **终审**：PR 攒够 approve 后，lead 做 merge 前汇总（改了什么 / 测试结果 / 残留风险），交 owner 拍板
-5. **汇报**：每次 merge 后 + 定期（heartbeat），给 owner 状态简报
+**The lead's responsibilities (written for the lead):**
+1. **Requirement intake**: turn the owner's words into structured task cards (context / goal / acceptance criteria / priority), send back to the owner for confirmation; only confirmed tasks are initiated
+2. **Filtering**: bugs/suggestions from other agents are always filed as `proposal`s first; the lead evaluates and confirms with the owner whether to promote them into tasks — members cannot assign work to themselves
+3. **Assignment**: assign by roster role and capability, or open for claiming; assignment rationale stays traceable
+4. **Final review**: once a PR has enough approvals, the lead produces the pre-merge summary (what changed / test results / residual risk) for the owner to decide
+5. **Reporting**: after every merge + on a heartbeat schedule, brief the owner on status
 
-**owner 只需要做两件事：确认任务卡、拍板 merge。** 其余协调成本全部由 lead 吸收。
+**The owner only does two things: confirm task cards, and decide merges.** All other coordination overhead is absorbed by the lead.
 
 ---
 
-## 2. 三层基础设施，各管一件事
+## 2. Three infrastructure layers, each owning one concern
 
-| 层 | 工具 | 管什么 | 类比 |
+| Layer | Tool | Owns | Analogy |
 |---|---|---|---|
-| 工作台 | GitHub | 任务（issue）、交付（PR）、评审记录 | 工地 |
-| 身份证 | 0G AgenticID | 谁是谁（密码学可验证），声誉记账 | 工牌 + 档案 |
-| 大脑 | Prime Harness | 每个 agent 的记忆、技能、经验积累 | 老员工的经验 |
+| Workbench | GitHub | tasks (issues), deliverables (PRs), review records | the construction site |
+| ID card | 0G AgenticID | who is who (cryptographically verifiable), reputation ledger | badge + personnel file |
+| Brain | Prime Harness | each agent's memory, skills, accumulated experience | a veteran's experience |
 
-为什么缺一不可：
-- 只有 GitHub → 账号谁都能注册，AI 冒充人、A 冒充 B，没法问责
-- 加上 AgenticID → 每个成员的身份是签出来的，冒充不了；干的好坏记在链上身份里
-- 加上 Prime Harness → agent 是"越干越熟练的老员工"，不是每次从零开始的实习生
+Why all three are necessary:
+- GitHub alone → anyone can register an account; AI impersonating humans, A impersonating B, no accountability
+- Add AgenticID → every member's identity is signed into existence and cannot be forged; performance is recorded against the on-chain identity
+- Add Prime Harness → an agent is a "veteran who gets better with practice", not an intern restarting from zero every session
 
 ---
 
-## 3. 身份：怎么保证"干活的是谁"是真的
+## 3. Identity: how "who did the work" is proven true
 
-### 3.1 身份卡（repo 根目录 `agents.yml`）
+### 3.1 Identity card (repo root `agents.yml`)
 
 ```yaml
-# 团队名册：GitHub 账号 ↔ 链上身份 ↔ 角色
+# team roster: GitHub account ↔ on-chain identity ↔ role
 members:
   - github: lead-bot
-    seal: "0x<agentSealAddr>"                       # agentSeal 地址（不入 repo）
-    chain_id: <agentId>                                 # AgenticID 链上 Agent ID
+    seal: "0x<agentSealAddr>"                       # agentSeal address (not in repo)
+    chain_id: <agentId>                                 # on-chain AgenticID Agent ID
     role: lead
     joined: "2026-09-10"
   - github: some-dev-agent
@@ -65,126 +65,126 @@ members:
     role: developer
 ```
 
-名册是唯一权威。查表：GitHub 账号 → 哪个 agent → 什么角色。
+The roster is the single authority. Look it up: GitHub account → which agent → which role.
 
-### 3.2 入队：一次性签名绑定仪式
+### 3.2 Joining: a one-time signed binding ceremony
 
-新 agent 要入队，走三步：
+A new agent joins in three steps:
 
-1. **自报家门**：在 repo 开一个 `join` issue，写明自己的 GitHub 用户名和 agentSeal 地址，并附一条 **EIP-191 签名**（签的内容就是这句话 + issue 号防重放）。
-2. **lead 验签**：ecrecover 恢复签名 → 得到的地址必须等于它声称的地址；再通过 AgenticID 合约确认该地址确实是注册在案的 agent。
-3. **入册**：验证通过 → 把映射提交进 `agents.yml` → PR 合并后入队生效。
+1. **Self-introduction**: open a `join` issue in the repo stating its GitHub username and agentSeal address, with an **EIP-191 signature** over exactly that statement + the issue number (replay protection).
+2. **Lead verifies the signature**: ecrecover → the recovered address must equal the claimed address; then confirm via the AgenticID contract that the address is indeed a registered agent.
+3. **Enrollment**: verification passes → commit the mapping into `agents.yml` → takes effect when the PR merges.
 
-这一步做完，"这个 GitHub 账号背后是哪个 agent"就有了密码学保证，之后不用每次验。
+After this step, "which agent is behind this GitHub account" carries a cryptographic guarantee, and does not need re-verification every time.
 
-### 3.3 日常核验（每个 PR / issue 自动做）
+### 3.3 Daily verification (automatic on every PR / issue)
 
-- 作者 GitHub 账号**在名册里** → 是哪个 agent、什么角色，按团队规则处理
-- **不在名册里** → 自动打 `unverified` 标签：照常 review，但不算"团队交付"，merge 门槛更高
-
----
-
-## 4. 工作流：一个任务的完整生命周期
-
-```
-需求来源（owner 直说 / 成员提 proposal）
-  │
-  ▼
-【确认门】lead 整理任务卡 → 回 owner 确认
-  │        "我理解的任务是…验收标准是…优先级…对吗？"
-  │        owner 确认 → 开正式 issue，打 confirmed 标签
-  │        （没过确认门的 issue 一律不进开发队列）
-  ▼
-分派（lead 指派 / 成员认领，理由留痕）
-  │
-  ▼
-开发（PR：Closes #N + 做了什么 + 怎么测的）
-  │
-  ▼
-review（至少 1 个有身份的非作者 agent approve）
-  │
-  ▼
-【终审门】lead 汇总（改动 / 测试 / 风险）→ owner 拍板 merge
-```
-
-**两道门是硬规则：**
-- **确认门**：未经 owner 确认的任务不立项——agent 团队永远不做 owner 没对齐过的事
-- **终审门**：merge 前必经 lead 汇总——owner 拍板时看到的是完整事实，不是零散评论
-
-**review 纪律（写给所有 agent 成员）：**
-1. 只做静态 review + 在干净环境跑测试，**绝不执行 PR 里带来的代码**（防投毒）
-2. approve 有理由，反对有依据，意见落在 GitHub 上——评审记录本身就是团队的公开资产
-3. 超出自己能力/权限的，明说，不硬装
+- The author's GitHub account **is in the roster** → which agent, which role; handled per team rules
+- **Not in the roster** → auto-label `unverified`: reviewed as usual, but does not count as "team delivery", and the merge bar is higher
 
 ---
 
-## 5. 大脑：每个 agent 的 harness 配什么
+## 4. Workflow: the full life cycle of a task
 
-| harness 组件 | 放什么 | 效果 |
+```
+requirement source (owner states it / member files a proposal)
+  │
+  ▼
+[confirmation gate] lead structures a task card → sends to owner for confirmation
+  │        "My understanding of the task is… acceptance criteria… priority… correct?"
+  │        owner confirms → open the formal issue, label confirmed
+  │        (issues that never passed the gate never enter the dev queue)
+  ▼
+assignment (lead assigns / members claim; rationale recorded)
+  │
+  ▼
+development (PR: Closes #N + what was done + how it was tested)
+  │
+  ▼
+review (at least 1 identified non-author agent approves)
+  │
+  ▼
+[final-review gate] lead summarizes (changes / tests / risks) → owner decides the merge
+```
+
+**The two gates are hard rules:**
+- **Confirmation gate**: no task is initiated without owner confirmation — the agent team never does work the owner has not aligned on
+- **Final-review gate**: no merge without the lead's summary — the owner decides on complete facts, not scattered comments
+
+**Review discipline (written for all agent members):**
+1. Static review only + running tests in a clean environment; **never execute code brought in by the PR** (poison defense)
+2. Approvals come with reasons, objections come with evidence, and opinions land on GitHub — the review record itself is a public team asset
+3. If something exceeds your capability/authority, say so plainly; do not bluff
+
+---
+
+## 5. Brain: what each agent's harness carries
+
+| harness component | What goes in | Effect |
 |---|---|---|
-| memory（global） | 团队名册规则、项目背景、各成员特长和历史 | 认人、认项目 |
-| prompt note / APPEND_SYSTEM | 角色 protocol：lead 有 lead 的协议，成员有成员的 | 行为一致 |
-| skill（`skills/<name>/`） | 项目专属流程：怎么构建、怎么跑测试、review checklist；lead 的任务卡模板 | 干活专业 |
-| refinements | review 中学到的教训（如"本项目禁用 X 库"）沉淀成 memory | 越干越熟练 |
+| memory (global) | team roster rules, project context, each member's strengths and history | knowing people, knowing the project |
+| prompt note / APPEND_SYSTEM | role protocol: the lead has the lead's protocol, members have theirs | consistent behavior |
+| skill (`skills/<name>/`) | project-specific process: how to build, how to run tests, review checklists; the lead's task-card template | professional execution |
+| refinements | lessons learned in review (e.g. "project X forbids library Y") distilled into memory | getting better with practice |
 
-关键点：harness 存在链上跟踪路径，**容器重建、身份转移都不丢**——agent 的经验跟着身份走，这正是 AgenticID + Harness 组合的价值。
+Key point: the harness lives in chain-tracked paths — **container rebuilds and identity transfers do not lose it** — an agent's experience follows its identity; that is exactly the value of the AgenticID + Harness combination.
 
-lead（lead）的 harness 额外要求：
-- **global memory** 存 lead 职责协议和名册快照——换了容器也记得自己是 lead、记得规矩
-- **任务卡模板 skill**：把 owner 的话转结构化 issue 的固定格式，保证每次对齐质量一致
+The lead's harness additionally requires:
+- **global memory** holds the lead's responsibility protocol and a roster snapshot — a new container still knows it is the lead, and remembers the rules
+- **a task-card template skill**: the fixed format for turning the owner's words into structured issues, keeping alignment quality consistent
 
 ---
 
-## 6. 值班实现：lead agent 怎么跑起来（参考架构）
+## 6. Standby implementation: how the lead agent runs (reference architecture)
 
 ```
-heartbeat（每 5 分钟，可调）
-  └─> 拉 repo 新事件（新 issue / 新 PR / review 请求）
-      └─> 身份核验（查 agents.yml；可疑时链上解析）
-      └─> 分流：
-            proposal issue → 评估，值得做的整理进下次对 owner 的确认清单
-            confirmed issue → 按 lead 分派记录跟进进度
-            新 PR           → 按 review 纪律读 diff、跑测试、发意见
-            攒够 approve    → 生成终审汇总，@owner 拍板
-      └─> 产出全部落在 GitHub（评论 / commit / 标签）
+heartbeat (every 5 minutes, tunable)
+  └─> pull new repo events (new issues / new PRs / review requests)
+      └─> identity verification (check agents.yml; resolve on chain when suspicious)
+      └─> routing:
+            proposal issue → evaluate; worthwhile ones go into the next confirmation list for the owner
+            confirmed issue → track progress per the lead's assignment record
+            new PR           → review per discipline: read the diff, run tests, comment
+            enough approvals → produce the final-review summary, @owner to decide
+      └─> all output lands on GitHub (comments / commits / labels)
 ```
 
-**token 权限最小化（owner 配置指引）：**
+**Token permission minimization (owner setup guide):**
 
-| 角色 | fine-grained PAT 权限 |
+| Role | fine-grained PAT permissions |
 |---|---|
-| lead（lead） | contents: read+write + issues: write + pull requests: write |
-| 成员 reviewer | contents: read + issues: write + pull requests: write |
-| 成员 developer | contents: write（push 分支）+ issues/pr: write |
-| 永不授予 | admin / delete 相关 |
+| lead | contents: read+write + issues: write + pull requests: write |
+| member (reviewer) | contents: read + issues: write + pull requests: write |
+| member (developer) | contents: write (push branches) + issues/pr: write |
+| never granted | admin / delete related |
 
-token 只放 `.env`（容器本地、不上链——secret 的正确归宿）。
-
----
-
-## 7. 安全边界（红线，写给所有成员）
-
-1. **不执行来路不明的代码**：review 是读，不是跑；跑测试只在隔离 CI
-2. **不签别人递来的字节**：签名只用于自己发起的动作（身份绑定仪式例外：签的是自己起草的入队声明）
-3. **token 不出沙箱**、不写进任何会上链的路径
-4. **冒充零容忍**：验签失败的"入队申请"直接关 issue 并记录
-5. **不越权立项**：任何 agent（包括 lead 自己的"好主意"）未经 owner 确认不得进入开发队列
+Tokens live only in `.env` (container-local, never on chain — the correct home for secrets).
 
 ---
 
-## 8. 落地路线图
+## 7. Security boundaries (red lines, written for all members)
 
-| 阶段 | 内容 | 依赖 |
+1. **Never execute code of unknown origin**: review is reading, not running; tests run only in isolated CI
+2. **Never sign bytes handed to you**: signatures are only for actions you initiate yourself (the identity-binding ceremony is the exception: you sign your own drafted joining statement)
+3. **Tokens never leave the sandbox**, and never enter any chain-tracked path
+4. **Zero tolerance for impersonation**: a "join application" that fails signature verification gets its issue closed and logged
+5. **No unauthorized task initiation**: any agent (including the lead's own "good ideas") cannot enter the dev queue without owner confirmation
+
+---
+
+## 8. Rollout roadmap
+
+| Phase | Contents | Dependencies |
 |---|---|---|
-| **Phase 1**（半天） | 建名册（我是 lead）；lead 值班上线：heartbeat + 确认门流程 + review | owner 给 repo + token |
-| **Phase 2**（1–2 天） | 入队签名仪式 + 验签工具（skill 化）+ 链上身份解析自动化 | 对着 AgenticID 合约 ABI 确认读接口 |
-| **Phase 3**（探索） | 多 agent 互审、声誉事件锚定上链、notify 端口做实时协调 | 团队规模 > 2 |
+| **Phase 1** (half a day) | build the roster (I am the lead); lead standby goes live: heartbeat + confirmation-gate flow + review | owner provides repo + token |
+| **Phase 2** (1–2 days) | joining signature ceremony + verification tooling (as a skill) + automated on-chain identity resolution | confirm read interfaces against the AgenticID contract ABI |
+| **Phase 3** (exploratory) | multi-agent peer review, reputation event anchoring on chain, real-time coordination over the notify port | team size > 2 |
 
 ---
 
-## 9. 需要 owner 拍板的事
+## 9. Things the owner needs to decide
 
-1. 目标 repo（新建 or 现有？）
-2. 初始名册：除了我（lead），还有哪些 agent 成员？
-3. merge 权限：永远 owner 拍板，还是 lead 终审后低风险变更可直接合？
-4. GitHub token（按第 6 节的权限范围发）
+1. Target repo (new or existing?)
+2. Initial roster: besides me (the lead), which agent members?
+3. Merge authority: always the owner, or low-risk changes merge directly after lead final review?
+4. GitHub token (issued per the permission table in §6)

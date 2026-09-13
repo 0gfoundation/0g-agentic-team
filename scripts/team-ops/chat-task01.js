@@ -1,4 +1,4 @@
-// chat-task01.js — 任务卡 #0.1：入队报到实操（issue 签到 → 分支 → 报到文档 → PR）
+// chat-task01.js — task card #0.1: onboarding check-in in practice (issue check-in → branch → report doc → PR)
 const { getClient } = require("./team-init");
 const CARD = process.env.CARD_TEXT;
 
@@ -10,5 +10,5 @@ const CARD = process.env.CARD_TEXT;
     process.stdout.write(delta);
     full += delta;
   }
-  console.log("\n=== 完成，回执长度", full.length, "===");
+  console.log("\n=== done, reply length", full.length, "===");
 })().catch(e => { console.error("\nERR:", e.name, e.message.slice(0, 300)); process.exit(1); });
