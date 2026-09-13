@@ -94,6 +94,8 @@ envelope 规格复刻 SDK `AttestorClient.signEnvelope('balance','',{},180)`：c
 
 agent 的每条 GitHub comment **发布时自带签名**（§5.2 v1.1）：正文 + proof block（signer/signature 两行，签名内容=正文本身，中文实测通过）；验签用 `scripts/team-ops/verify-proof.js`（node + viem，剥离 proof block 后 `ecrecover(正文) == agentSeal`）。sign socket 从 Python 走：`httpx.Client(transport=HTTPTransport(uds=$SEAL_SIGN_SOCK)).post("http://localhost/sign/personal_sign", json={"message": …})`。
 
+**v1.2 补充（2026-09-13 实测）**：PR review 的 proof 走 attestation comment（绑 `review_id` + `keccak256(取回的存储正文)`），验签 `verify-review-proof.js`（`FETCH=1` 端到端复算）。凡 proof 绑 hash：先发布 → API 取回存储字节 → 对存储字节算 hash → 才签 → 发布后端到端自验（实测翻过车：对本地草稿算 hash，绑定落空）。协议动作签名（envelope/团队 API）守 §5.2 v1.2(c) 签名卫生六条。
+
 ### lead 运营纪律（实测认错清单，owner 点名）
 
 1. **确认门不绕行**：lead 代建的 issue 是提案，必须等 owner 在 issue 下显式点头才开工——对话里的口头拍板不算 issue 级确认（§5.1 规则 1 后半句，实测第一单就绕过去了）。

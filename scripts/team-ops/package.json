@@ -7,6 +7,8 @@
   "init": "node team-init.js",
   "ack": "node do-ack.js",
   "balance": "node probe-balance.js",
+  "verify:proof": "node verify-proof.js",
+  "verify:review": "node verify-review-proof.js",
   "deploy:backend1": "node deploy-backend1.js"
  },
  "dependencies": {

@@ -150,6 +150,27 @@ signature: 0x<…>
 - 历史消息追溯补签（v1.0 的 id+SHA-256 声明法）仅限本规范生效前的存量消息，新消息一律发布即带签。
 - PR 描述与 commit message 鼓励同构附 proof（第一版先覆盖 comment）。
 
+**v1.2 增补（2026-09-13，xm-dsh / agentId 3586004 实测沉淀；live 演示：0g-agentic-id #153 review 5190679322 + attestation 5653301914）**
+
+**(a) hash 绑定必须对着存储字节算（实测勘误，硬规则）**
+复核 live proof 发现：comment `5630896658` 的 message 行声称 `SHA-256(raw body)` 与目标 comment `5630552223` 的 **GitHub 存储正文实测哈希不符**（该 comment 未编辑过；签名本身有效，但 hash 绑定落空——验证方今日复算必红）。根因：签时哈希的是**本地草稿**，不是 GitHub 存储的字节。凡 proof 绑 hash（v1.0 追溯式、review attestation、任何"SHA-256(xxx)"声明）：
+1. **先发布，再取回，再签**：发布后从 GitHub API 取回存储正文，对**取回的字节**算 hash，然后才签——所见（存储）即所签；
+2. **canonical form 写明字节级定义**（"verbatim，含/不含末尾换行"、剥离到第几字节），验证方照抄可复算；"raw body" 这种自然语言不够；
+3. **发布后端到端自验**：从 GitHub 存储字节重新剥离 / 重算 / ecrecover，绿了才算发完——实测该环节拦下过提取 bug，自验是拦截器不是仪式。
+（v1.1"签正文本身"路线对 comment 天然免疫此坑——不 hash 就没有 hash 错；但 review 走 hash 绑定路线，此规则必守。）
+
+**(b) PR review 的 proof：attestation comment（新形态）**
+review 不是 comment：正文要保持正式结构，且归属断言常需与发布账号解耦（owner-relayed 下尤其如此）。推荐形态（0g-agentic-id 三次 live 实测：#146 / #150 / #153）：**独立 attestation comment**，消息固定字段绑 `review_id` + `keccak256(取回的 review 正文)` + 作者身份（agentSeal + agentId + chain）+ 验证声明（如"Independently reproduced 每条都在我沙箱重跑过"）；proof comment 内附 viem / foundry 验证片段与链上 `getAgentSeal(agentId)` 核验路径。签名只盖自己起草的 review 正文与声明。工具：`scripts/team-ops/verify-review-proof.js`（本笔新增，`FETCH=1` 端到端复算存储正文 hash）。
+
+**(c) 签名卫生（协议动作通用：chat envelope / 团队 API / 任何非一次性签名）**
+2026-09-13 审计一处自建团队 API 的 SOP，六个缺口全修 + 冒烟回归后沉淀为通则：
+1. **新鲜度**：动作签名带 `time`（ISO-8601 UTC），验证方强制 ±10 min 窗口；
+2. **单次 nonce**：一次性 + **持久化**账本（内存账本重启即重开重放窗口），重放即拒；
+3. **全量绑定**：签全量 payload 的 canonical 摘要（如 `sha256(JSON.stringify([字段…]))`），不是标题/标签——否则签后 severity / detail 可被偷换；服务端重算，不符即拒；
+4. **两种事实分记**：`signature_verified`（签名=自报地址）≠ `on_chain_registered`（链上在案）——审计日志分列，不得合并成一个 "verified"；
+5. **无 proof 不验**：未签名提交什么都不验、也不查链（匿名自报地址不触发 RPC，顺带消灭按请求打链的 DoS 面）；显式记 `unverified` + `on_chain_checked: false`，字段不得静默消失；
+6. **分隔符防歧义**：管道分隔的签名消息，自由文本字段禁 `|`（或转义）。
+
 ---
 
 ## 6. 生命周期 SOP
