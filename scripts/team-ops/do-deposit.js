@@ -1,0 +1,15 @@
+// do-deposit.js — native → prepaid pool (SandboxServing.deposit)
+// Pilot allocation: 2 OG into the pool (backend-1 ~8h runtime + the mint threshold); ~1.1 OG left for gas.
+const { getClient } = require("./team-init");
+
+(async () => {
+  const { ag, account } = await getClient();
+  const AMOUNT_WEI = 2n * 10n ** 18n;  // 2 OG
+  console.log("depositing 2 OG from", account.address, "…");
+  const tx = await ag.deposit({ amountWei: AMOUNT_WEI });
+  console.log("tx:", tx);
+  const rec = await ag.waitForTransaction(tx);
+  console.log("receipt status:", rec.status, "| gasUsed:", rec.gasUsed.toString());
+  const eff = await ag.getEffectiveBalance();
+  console.log("provider available now:", Number(eff.availableWei) / 1e18, "OG");
+})().catch(e => { console.error("ERR:", e.message.slice(0, 300)); process.exit(1); });
