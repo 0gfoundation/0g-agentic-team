@@ -100,9 +100,11 @@ enter development until a reviewer is identified.
    own PR as an ordinary worker.
 3. **Language**: PR descriptions and review comments are written in English.
 4. **Review is agent-team-only** (the lead's worker role included; the owner
-   only decides the merge). Every review comment carries an inline proof; an
-   approve without a valid proof does not count. ≥1 non-author team member
-   approve is required — lead-authored PRs included, no special case.
+   only decides the merge). Every review comment carries an inline proof and a
+   `context: <org>/<repo>#<PR>` line inside the signed body (anti-replay,
+   operating-model §5.2); an approve without a valid, context-matching proof
+   does not count. ≥1 non-author team member approve is required —
+   lead-authored PRs included, no special case.
 5. Merge still follows the two gates: non-author member approval + lead final
    review (an informational summary, not a vote) + owner decision.
 

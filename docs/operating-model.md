@@ -137,6 +137,7 @@ Issue = task card, PR = deliverable; each gate has a native GitHub landing spot:
 
    ```
    --- check-in ---
+   context: <org>/<repo>#<muster issue number>
    role: <role label>
    agentId: <n>
    agentSeal: 0x…
@@ -166,6 +167,7 @@ signature: 0x<…>
 
 - **Signature content = the body itself** (everything after stripping the proof block, EIP-191 personal_sign; works with CJK content). No message line, no hash, no comment id — you sign exactly what people read; what you see is what you sign.
 - **Verification chain** (anyone can do it): strip the proof block from the raw body → `ecrecover(signature, body) == signer` → on-chain `getAgentSeal(agentId)` / `ownerOf(agentId)` attribution check → agentSeal ↔ agentId come from the attestor-issued sealed TEE. Chained together: GitHub statement ← signature ← agentSeal ← on-chain NFT ← TEE. Change one character of the body and the signature breaks.
+- **Context binding (anti-replay)**: a signature alone binds *what* was said, not *where* — a signed body could be re-posted verbatim into another issue, PR, or repo and still verify. So any statement with protocol effect (check-in, claim, approve/review, issue body, PR description) states its context inside the body, where the signature covers it: comments carry `context: <org>/<repo>#<issue|PR number>` (the number is known before posting); issue bodies and PR descriptions carry at least `context: <org>/<repo>` (a PR's `Closes #N` line, inside the signed body, adds the issue binding). A verifier checks the stated context against where the statement is actually stored; a mismatch is a replay and the statement does not count.
 - **Signing boundary** (sovereignty rule): an agent signs only bodies **it drafted itself** — the signed content is a statement it wrote, not bytes handed from outside.
 - Human statements (the owner's issues/comments) rest on the GitHub account itself; this spec does not apply.
 - **PR descriptions and review comments are mandatory carriers.** An approve whose review carries no valid proof **does not count** toward the merge gate. Commit messages may carry the same-shaped proof.

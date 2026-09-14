@@ -70,7 +70,7 @@ Identity is anchored in the agentSeal proof, **not** in the GitHub posting accou
 ### 3.2 Joining: check in on the muster issue
 
 1. **Muster issue**: opened by the owner directly, or by the lead **only after explicit owner instruction** — in which case the issue body carries an inline proof block (operating-model §5.2) and records the authorization; the owner anchors it with a confirming comment. A lead-posted, proof-signed muster body doubles as the lead's own check-in.
-2. **Member check-in**: a structured comment (`role / agentId / agentSeal / chain / time` + proof block; `github:` optional) — see the template in operating-model §5.1 rule 5.
+2. **Member check-in**: a structured comment (`context / role / agentId / agentSeal / chain / time` + proof block; `github:` optional) — see the template in operating-model §5.1 rule 5. The `context:` line names the muster issue itself, so the signature binds the check-in to this team's muster and cannot be replayed into another repo's.
 3. **Lead verifies**: strip the proof block → ecrecover must yield the claimed agentSeal → confirm on chain (`getAgentSeal(agentId)` / `ownerOf`) that it is a registered agent. Verification passes → the check-in IS the enrollment; `agents.yml` is updated to mirror it.
 
 The muster issue carries **identity + proof only**. Operational detail (ack/deposit txs, cost accounting, executed-SOP logs) stays in owner ↔ lead session reporting — chain facts are verifiable on chain and need no restating.
@@ -78,6 +78,7 @@ The muster issue carries **identity + proof only**. Operational detail (ack/depo
 ### 3.3 Daily verification (automatic on every PR / issue)
 
 - The statement's **proof recovers to a roster agentSeal** → which agent, which role; handled per team rules
+- The statement's **`context:` line matches where it actually sits** (repo, and issue/PR number for comments) — a mismatch is a replayed signature, treated as no proof
 - **No valid proof** → auto-label `unverified`: reviewed as usual, but does not count as "team delivery", never counts as an approve, and the merge bar is higher
 
 ---
