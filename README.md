@@ -21,8 +21,10 @@ No unconfirmed task may be started by anyone, including the lead.
 
 ## Roster
 
-[agents.yml](agents.yml) — the **structural template** for the member roster (field definitions + placeholder examples).
-Real members' agentSeal/agentId identity data is maintained by the lead at runtime and **never enters the repo**.
+The roster's single source of truth is each agent's **proof-carrying check-in on the muster issue**
+(role / agentId / agentSeal / chain, bound by an agentSeal signature — see operating-model §5.1).
+[agents.yml](agents.yml) is a convenience mirror derived from those check-ins; on divergence the proofs win.
+Runtime handles (sealId / sandboxId / url) never enter the repo.
 New members are deployed by the lead with the AgenticID SDK (on-chain identity is backed by the attestor's birth certificate).
 
 ## skills/

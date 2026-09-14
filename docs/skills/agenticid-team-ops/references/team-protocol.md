@@ -1,7 +1,7 @@
-# Team Protocol v1.1
+# Team Protocol
 
-Owner directives issued 2026-09-14, operationalized by the lead. This document is
-the authoritative team protocol. It binds all members and the lead alike. Where it
+This document is the authoritative team protocol, set by owner directive and
+operationalized by the lead. It binds all members and the lead alike. Where it
 overlaps `operating-model.md` §5.2 (GitHub message proofs), that section still
 governs GitHub-side proofs; this protocol governs chat-side proofs, skill
 distribution, issue modes, and PR discipline.
@@ -24,7 +24,7 @@ Every member must be able to read and follow the team's operational skill
   survives container rebuilds.
 - Members cite the skill version they followed when delivering work.
 
-## 2. Attribution model (live-tested 2026-09-14)
+## 2. Attribution model
 
 Two distinct channels with distinct trust properties. The design is enforced by
 the sealed proxy itself (`sealed/internal/proxy/proxy.go`, "Routing precedence"),
@@ -53,10 +53,10 @@ Protocol rules:
    artifact and signs it *at its own initiative* via its sign socket; the lead
    verifies against the member's known agentSeal. Members never sign text
    handed to them (sovereignty rule, unchanged).
-4. **In-chat proof blocks are deprecated** for attribution (v1.0 §2). The lead
-   may still sign its outgoing cards as a courtesy (chat-member.js does), but
-   verification of *attribution* must go through ServeProof. A member that
-   cannot verify a claim must say so honestly rather than claim verification.
+4. **In-chat proof blocks carry no attribution weight.** The lead may sign its
+   outgoing cards as a courtesy (chat-member.js does), but verification of
+   *attribution* must go through ServeProof. A member that cannot verify a
+   claim must say so honestly rather than claim verification.
 
 Live-verified reference deployment (backend-1, agentId 410): registered
 `GET /api/statement` returns its authored statement; response carries
@@ -80,7 +80,14 @@ further approval needed. The lead still assigns / confirms claims per §5.1.
 
 In both modes the issue body must carry mission + acceptance criteria before
 work starts (the lead structures it if the owner's text needs shaping), and all
-agent content in issues follows the §5.2 proof spec.
+agent content in issues follows the §5.2 proof spec. **An agent-posted issue
+body carries its inline proof block** like any other agent statement; a
+lead-posted task issue additionally records the owner instruction that
+authorized it (`authorized-by-owner: <time/channel>`).
+
+**Staffing**: every confirmed issue is handled by at least 2 agents — one coder
+and one reviewer (more allowed) — both settled at claim time. An issue does not
+enter development until a reviewer is identified.
 
 ## 4. PR discipline (linkage and authorship)
 
@@ -88,16 +95,24 @@ agent content in issues follows the §5.2 proof spec.
    linked issue is not merged — send it back.
 2. **PR body and review comments come from the reporting member**: the member
    that did the work authors the PR description (what changed / how it was
-   tested / evidence), signed per §5.2. The lead does not ghostwrite member
-   deliverables; the lead's role is final review, not authorship.
-3. Merge still follows the two gates: member approval + lead final review +
-   owner decision.
+   tested / evidence), with an inline §5.2 proof block. The lead does not
+   ghostwrite member deliverables; when the lead is the coder it authors its
+   own PR as an ordinary worker.
+3. **Language**: PR descriptions and review comments are written in English.
+4. **Review is agent-team-only** (the lead's worker role included; the owner
+   only decides the merge). Every review comment carries an inline proof; an
+   approve without a valid proof does not count. ≥1 non-author team member
+   approve is required — lead-authored PRs included, no special case.
+5. Merge still follows the two gates: non-author member approval + lead final
+   review (an informational summary, not a vote) + owner decision.
 
 ---
 
 ## Identity map (chat verification keys)
 
-Kept out of the repo in general (roster principle); for chat verification the
-lead holds it in sealed memory. Members verify against the identity stated in
-the lead's protocol-update cards, cross-checked with the on-chain
+The public identity binding (role / agentId / agentSeal / chain) is anchored in
+each agent's proof-carrying check-in on the muster issue and mirrored in
+`agents.yml`. Runtime handles (sealId / sandboxId / url) stay out of the repo;
+the lead holds them in sealed memory. Members verify against the identity
+stated in the lead's protocol-update cards, cross-checked with the on-chain
 `getAgentSeal(agentId)` when in doubt.

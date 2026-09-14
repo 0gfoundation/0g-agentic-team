@@ -1,9 +1,13 @@
 # ============================================================
-# 0g-agentic-team roster (agents.yml)
-# Identity principle: real identities (name / agentSeal / tokenId) never enter the repo;
-# the authoritative mapping is held by the lead in sealed harness memory (operating model §8).
-# Only role labels, framework, and responsibilities live in the repo.
-# Changes require lead final review + owner confirmation.
+# 0g-agentic-team roster snapshot (agents.yml)
+# The roster's SINGLE SOURCE OF TRUTH is each agent's first proof-carrying
+# statement in the muster issue (operating-model §5.1 rule 5): role, agentId,
+# agentSeal, chain — cryptographically bound by the agentSeal signature.
+# This file is only a convenience mirror derived from those check-ins;
+# on any divergence the muster-issue proofs win.
+# Identity is anchored in the agentSeal proof, never in a GitHub account
+# (github: is optional and only recorded when an agent posts from its own
+# account). Changes require lead final review + owner confirmation.
 # ============================================================
 team: 0g-agentic-team
 updated: "2026-09-11"
@@ -12,8 +16,9 @@ members:
   - role: lead
     framework: prime-agent
     joined: "2026-09-10"
-    identity: "sealed harness (not in repo)"
-    notes: "the owner's single interface; requirement alignment / task initiation / final review / balance management"
+    # chain_id / seal / checked_in: filled from the lead's proof-signed muster
+    # issue body (a lead-posted, proof-carrying muster body IS its check-in)
+    notes: "dual-role: owner portal (requirement alignment / task initiation / final review summary / balance management) + ordinary worker with zero privilege"
 
   - role: backend-1
     framework: prime-agent
@@ -21,5 +26,6 @@ members:
     seed: docs/seeds/backend-1.md
     status: minted       # on-chain identity minted (offline; no runtime cost until start())
     joined: "2026-09-11"
-    identity: "sealed harness (not in repo)"
-    notes: "toolchain v0.2; TEE bridge / ack / provider API verified; mint tx recorded in PR"
+    # chain_id / seal / checked_in: filled from the member's structured
+    # check-in comment on the muster issue
+    notes: "toolchain v0.2; TEE bridge / ack / provider API verified"

@@ -33,6 +33,11 @@ Key mechanism: **members are deployed from the lead's agentSeal address** (the S
 
 Chain of inheritance: controlling the lead's runtime (when the owner transfers the lead) = controlling the sign socket = inheriting management of the whole team. The team follows the lead.
 
+**The lead wears two hats, and they never mix:**
+
+- **Portal role** (owner ↔ lead): requirement intake, the confirmation gate, the final-review summary, reporting. These are **informational duties, not approval power** — the final-review summary is a fact digest (what changed / test results / residual risk) for the owner's merge decision; it is not an approve and carries no vote.
+- **Worker role**: the lead is an ordinary team member — it writes code, reviews, and checks in under exactly the same rules as everyone else, with **zero privilege**. In particular, a lead-authored PR needs ≥1 non-author team member approve like any other PR (the "non-author" requirement covers this with no special case), and the lead still writes the final-review summary for it — no conflict, since the gating approve came from another worker and the decision is the owner's.
+
 ---
 
 ## 2. Team-building SOP (deploy flow)
@@ -47,7 +52,7 @@ Chain of inheritance: controlling the lead's runtime (when the owner transfers t
 3. SDK: ag.agent.deploy(params, {wait: 'running'})
      → { sealId, agentSealAddr, agentId, url }
 4. first lesson on joining (send task card #0 over the chat channel: self-intro + read the protocol + reply confirmation)
-5. register into agents.yml (GitHub roster)
+5. check in on the muster issue (§5.1 rule 5) — the proof-carrying check-in IS the roster entry; `agents.yml` only mirrors it as a convenience snapshot
 ```
 
 **Technical points:**
@@ -124,17 +129,32 @@ Rule: **important decisions land in both places** — anything task-level said i
 
 Issue = task card, PR = deliverable; each gate has a native GitHub landing spot:
 
-1. **Two kinds of issues**: created by the owner = task card (must contain mission + acceptance criteria; the owner creating it personally means the confirmation gate is passed); created by members/lead = proposal or bug report — proposals also pass the confirmation gate: the lead annotates its assessment in the issue, and only ones the owner nods on (comment/emoji) become tasks. Members cannot initiate tasks for themselves.
-2. **Claim receipt**: a member's first comment on an issue is the claim receipt (`claim: <role label> @ <time>, expected <deliverable>`), followed by a lead confirmation comment (`lead confirmed claim`) — prevents racing/duplicate work. No work starts before the claim is confirmed.
+1. **Two kinds of issues**: created by the owner = task card (must contain mission + acceptance criteria; the owner creating it personally means the confirmation gate is passed); created by members/lead = proposal or bug report — proposals also pass the confirmation gate: the lead annotates its assessment in the issue, and only ones the owner nods on (comment/emoji) become tasks. Members cannot initiate tasks for themselves. **A lead-posted issue always requires prior explicit owner instruction, and its body carries an inline proof block** (§5.2 — sign the body with the proof block stripped) plus a line recording the authorization (`authorized-by-owner: <time/channel>`); the owner leaves a confirming comment (or emoji) on the issue to anchor the authorization on record.
+2. **Claim receipt + minimum staffing**: a member's first comment on an issue is the claim receipt (`claim: <role label> @ <time>, expected <deliverable>`), followed by a lead confirmation comment (`lead confirmed claim`) — prevents racing/duplicate work. **Every issue is staffed by at least 2 agents: one coder and one reviewer (more allowed), both settled at claim time** — an issue does not enter development until a reviewer is identified. No work starts before the claim is confirmed.
 3. **The owner speaking to a member directly in an issue**: technical facts may be answered directly (honest, brief); task changes and new instructions **don't count** until the lead confirms them into the task card — single-line reporting is not bypassed.
 4. **Done ≠ merged**: issues are closed by PR merges (`Closes #N`), never manually — every issue's closure passes through a final-review gate (member approve + lead final review + owner merge decision).
-5. **Check-in = joining**: a new member's first act after deploy is a check-in comment on the onboarding issue (with on-chain agentId and role label), simultaneously verifying its GitHub credentials work. The check-in is the joining ceremony.
+5. **Muster issue = onboarding**: joining happens in a muster issue, opened by the owner directly or by the lead after explicit owner instruction (rule 1 applies: proof-carrying body + recorded authorization). Each new member checks in with a structured comment:
+
+   ```
+   --- check-in ---
+   role: <role label>
+   agentId: <n>
+   agentSeal: 0x…
+   chain: <chain id>
+   time: <ISO-8601 UTC>
+   --- proof ---
+   signer: <agentSeal> (agentId <n>)
+   signature: 0x…   # EIP-191 over the body with the proof block stripped (§5.2)
+   ```
+
+   `github:` is an optional field — identity is anchored in the agentSeal proof, not the posting account; add it only when the member posts from its own account and the binding matters. **The roster's single source of truth is each agent's first proof-carrying statement in the muster issue** — the issue body for a lead-posted muster (the lead does not post a separate check-in comment; the signed body *is* its check-in), a check-in comment for members. When the owner opens the muster issue (a human body carries no proof), the lead checks in with a comment like every member.
+6. **No operational reports in public issues**: ack/deposit transactions, cost accounting, and executed-SOP logs belong to owner ↔ lead session reporting. Public issues carry identity + proof only; chain facts are verifiable on chain and need no restating.
 
 ### 5.2 Agent message proof spec (every agent statement on GitHub carries a signature)
 
-Background: GitHub credentials are a shared PAT — whoever holds it can impersonate any agent. Cryptographic attribution can only come from agentSeal signatures (private keys stay inside each TEE, signing via the sign socket `/sign/personal_sign`).
+Background: GitHub credentials are a shared/relayed PAT — whoever holds it can impersonate any agent, and the posting account proves nothing. Cryptographic attribution comes only from agentSeal signatures (private keys stay inside each TEE, signing via the sign socket `/sign/personal_sign`).
 
-**Spec (v1.1, sign-on-post)**: every GitHub comment by an agent (lead and members alike) **carries its signature at posting time** — one comment is self-contained, no post-hoc patching:
+**The rule: sign-on-post, inline, everywhere.** Every GitHub statement by an agent (lead and members alike) — comments, issue bodies, PR descriptions, review bodies — carries its signature inline at posting time. One statement is self-contained; there is no separate attestation form and no post-hoc patching. Who presses the button (owner-relay or the agent's own account) is irrelevant: the proof travels inside the body.
 
 ```
 <body>
@@ -144,27 +164,20 @@ signer: <agentSeal address> (agentId <n>)
 signature: 0x<…>
 ```
 
-- **Signature content = the body itself** (everything after stripping the proof block, EIP-191 personal_sign; verified live with CJK content). No message line, no hash, no comment id — you sign exactly what people read; what you see is what you sign.
-- **Verification chain** (anyone can do it): strip the proof block from the raw body → `ecrecover(signature, body) == signer` → on-chain `ownerOf(agentId)` attribution check → agentSeal ↔ agentId come from the attestor-issued sealed TEE. Chained together: GitHub statement ← signature ← agentSeal ← on-chain NFT ← TEE. Change one character of the body and the signature breaks.
-- **Signing boundary** (sovereignty rule): an agent signs only bodies **it drafted itself** — the signed content is a comment it wrote, not bytes handed from outside. Compliant.
+- **Signature content = the body itself** (everything after stripping the proof block, EIP-191 personal_sign; works with CJK content). No message line, no hash, no comment id — you sign exactly what people read; what you see is what you sign.
+- **Verification chain** (anyone can do it): strip the proof block from the raw body → `ecrecover(signature, body) == signer` → on-chain `getAgentSeal(agentId)` / `ownerOf(agentId)` attribution check → agentSeal ↔ agentId come from the attestor-issued sealed TEE. Chained together: GitHub statement ← signature ← agentSeal ← on-chain NFT ← TEE. Change one character of the body and the signature breaks.
+- **Signing boundary** (sovereignty rule): an agent signs only bodies **it drafted itself** — the signed content is a statement it wrote, not bytes handed from outside.
 - Human statements (the owner's issues/comments) rest on the GitHub account itself; this spec does not apply.
-- Retroactive signing of historical messages (the v1.0 id+SHA-256 declaration method) is only for legacy messages predating this spec; new messages are always signed at posting time.
-- PR descriptions and commit messages are encouraged to carry the same-shaped proof (first version covers comments).
+- **PR descriptions and review comments are mandatory carriers.** An approve whose review carries no valid proof **does not count** toward the merge gate. Commit messages may carry the same-shaped proof.
+- **Language**: PRs — descriptions and review comments — are written in English.
 
-**v1.2 additions (2026-09-13, battle-tested by xm-dsh / agentId 3586004; live demo: 0g-agentic-id #153 review 5190679322 + attestation 5653301914)**
-
-**(a) Hash bindings are computed over stored bytes (erratum from live data; hard rule)**
-Re-checking a live proof found: the message line of comment `5630896658` claims a `SHA-256(raw body)` that **does not match the GitHub-stored body of target comment `5630552223`** (that comment was never edited; the signature itself is valid, but the hash binding is dead — any verifier recomputing today gets red). Root cause: what was hashed at signing time was the **local draft**, not the bytes GitHub stores. Whenever a proof binds a hash (the v1.0 retroactive form, review attestations, any "SHA-256(xxx)" declaration):
-1. **Post first, fetch back, then sign**: after posting, fetch the stored body from the GitHub API, compute the hash over **the fetched bytes**, and only then sign — sign what is stored, not what you drafted;
+**Hash-bound proofs** (any signature that binds a *hash* of stored content rather than the content itself — chat envelopes, deliverable manifests, off-GitHub attestations):
+1. **Hash the stored bytes, never the local draft**: fetch the content back from where it is stored, compute the hash over the fetched bytes, and only then sign;
 2. **State the canonical form byte-precisely** ("verbatim, with/without trailing newline", stripped up to byte N) so a verifier can reproduce it exactly; natural language like "raw body" is not enough;
-3. **End-to-end self-verify after posting**: re-strip / re-hash / ecrecover from the GitHub-stored bytes; it is not "posted" until it is green — this step has intercepted a real extraction bug; self-verification is an interceptor, not a ritual.
-(The v1.1 "sign the body itself" route is naturally immune for comments — no hash, no hash bug; but reviews use the hash-binding route, where this rule is mandatory.)
+3. **End-to-end self-verify after posting**: re-strip / re-hash / ecrecover from the stored bytes; it is not "posted" until it is green — self-verification is an interceptor, not a ritual.
+(The inline "sign the body itself" route is naturally immune — no hash, no hash bug.)
 
-**(b) Proof for PR reviews: the attestation comment (new form)**
-A review is not a comment: the body must keep its formal structure, and the attribution assertion often needs to be decoupled from the posting account (especially under owner-relay). Recommended form (live-tested three times on 0g-agentic-id: #146 / #150 / #153): a **separate attestation comment** whose message binds, in fixed fields, `review_id` + `keccak256(fetched-back review body)` + author identity (agentSeal + agentId + chain) + verification claims (e.g. "every claim in Independently reproduced was re-run in my sandbox"); the proof comment carries viem / foundry verification snippets and the on-chain `getAgentSeal(agentId)` check path. Sign only review bodies and claims you drafted yourself. Tool: `scripts/team-ops/verify-review-proof.js` (added in the same commit; `FETCH=1` recomputes the stored-body hash end to end).
-
-**(c) Signing hygiene (for protocol actions generally: chat envelopes / team APIs / any non-one-shot signature)**
-On 2026-09-13 an audit of one self-built team API's SOP found six gaps; after fixing all six plus a smoke regression they distill into general rules:
+**Signing hygiene (for protocol actions generally: chat envelopes / team APIs / any non-one-shot signature):**
 1. **Freshness**: action signatures carry `time` (ISO-8601 UTC); verifiers enforce a ±10-minute window;
 2. **Single-use nonce**: one-time + a **persisted** ledger (an in-memory ledger reopens the replay window on restart); replays are rejected;
 3. **Full-payload binding**: sign a canonical digest of the full payload (e.g. `sha256(JSON.stringify([fields…]))`), not a title/label — otherwise severity / detail can be swapped after signing; the server recomputes and rejects mismatches;

@@ -52,17 +52,17 @@ at.roster()                      # team roster (agents.yml)
 | `runway(cpu, mem_gb)` | how many minutes of runtime the prepaid balance buys (⚠️ optimistic upper bound, off-chain debt not included) |
 | `roster(path)` | parse the agents.yml roster |
 
-Write-ops route (v0.2): **the official SDK TEE bridge `sealAccount()`** (exported from the `@0gfoundation/0g-agenticid-sdk/seal` subpath) — a full viem LocalAccount wired directly to `unix://$SEAL_SIGN_SOCK`, bridging all three signing endpoints; after `AgenticID.fromAttestor(url, {account: await sealAccount()})`, the SDK's full write surface is available. ⚠️ Do not hand-roll account objects: viem's `toAccount()` shape (source/sign/serializer hooks) carries implicit requirements deep in the send path — the official `sealAccount()` exists precisely for this (verified live 2026-09-11: ack on chain / effective balance / deploy envelope). Signing is only for actions the lead drafted itself. The verified toolchain lives in the repo at `scripts/team-ops/`.
+Write-ops route: **the official SDK TEE bridge `sealAccount()`** (exported from the `@0gfoundation/0g-agenticid-sdk/seal` subpath) — a full viem LocalAccount wired directly to `unix://$SEAL_SIGN_SOCK`, bridging all three signing endpoints; after `AgenticID.fromAttestor(url, {account: await sealAccount()})`, the SDK's full write surface is available. ⚠️ Do not hand-roll account objects: viem's `toAccount()` shape (source/sign/serializer hooks) carries implicit requirements deep in the send path — the official `sealAccount()` exists precisely for this (covers ack on chain / effective balance / deploy envelope). Signing is only for actions the lead drafted itself. The verified toolchain lives in the repo at `scripts/team-ops/`.
 
 ## Testing
 
-`python tests/test_golden.py` — services()/getBalance() decode golden vectors (captured live on mainnet 2026-09-11) + field-name regression.
+`python tests/test_golden.py` — services()/getBalance() decode golden vectors (captured live on mainnet) + field-name regression.
 
 ## Red lines
 
 The treasury private key never leaves the TEE; signing only for self-drafted actions; headcount expansion/reset requires owner approval.
 
-## v0.2 additions: field notes (from live team-building, 2026-09-11)
+## Field notes (from live team-building)
 
 ### effective_balance()
 
@@ -91,13 +91,13 @@ Each framework in `/config`'s frameworks[] has its own image — `start(sealId, 
 
 ### Message proof (repo §5.2 spec)
 
-Every GitHub comment by an agent **carries its signature at posting time** (§5.2 v1.1): body + proof block (two lines: signer/signature; the signed content is the body itself — verified live with CJK content). Verify with `scripts/team-ops/verify-proof.js` (node + viem: strip the proof block, then `ecrecover(body) == agentSeal`). Reaching the sign socket from Python: `httpx.Client(transport=HTTPTransport(uds=$SEAL_SIGN_SOCK)).post("http://localhost/sign/personal_sign", json={"message": …})`.
+Every GitHub statement by an agent — comment, issue body, PR description, review body — **carries its signature inline at posting time**: body + proof block (two lines: signer/signature; the signed content is the body itself with the proof block stripped — works with CJK content). Owner-relayed content included: who presses the button is irrelevant, the proof travels inside the body. PR descriptions and review comments are mandatory carriers (an approve without a valid proof does not count), and are written in English. Verify with `scripts/team-ops/verify-proof.js` (node + viem: strip the proof block, then `ecrecover(body) == agentSeal`). Reaching the sign socket from Python: `httpx.Client(transport=HTTPTransport(uds=$SEAL_SIGN_SOCK)).post("http://localhost/sign/personal_sign", json={"message": …})`.
 
-**v1.2 additions (live 2026-09-13)**: proof for PR reviews takes the attestation-comment form (binding `review_id` + `keccak256(fetched-back stored body)`), verified by `verify-review-proof.js` (`FETCH=1` recomputes end to end). Whenever a proof binds a hash: post → fetch the stored bytes back from the API → hash the stored bytes → only then sign → end-to-end self-verify after posting (this failed live once: hashing the local draft left the binding dead). Protocol-action signatures (envelopes / team APIs) follow the six signing-hygiene rules of §5.2 v1.2(c).
+**Hash-bound proofs** (any signature binding a *hash* of stored content — chat envelopes, deliverable manifests): post → fetch the stored bytes back from the API → hash the stored bytes → only then sign → end-to-end self-verify after posting; never hash the local draft. Protocol-action signatures (envelopes / team APIs) follow the six signing-hygiene rules of §5.2.
 
 ### Lead operating discipline (the learned-the-hard-way list, owner-called-out)
 
-1. **Never bypass the confirmation gate**: an issue the lead files on behalf of someone is a proposal — work starts only after the owner explicitly nods in the issue; a verbal go-ahead in conversation is not issue-level confirmation (§5.1 rule 1, second half — violated on the very first task, live).
+1. **Never bypass the confirmation gate**: an issue the lead files on behalf of someone is a proposal — work starts only after the owner explicitly nods in the issue; a verbal go-ahead in conversation is not issue-level confirmation (§5.1 rule 1, second half).
 2. **Least-privilege credentials**: member GitHub credentials require explicit owner authorization + a dedicated minimal-scope PAT (this repo only); a shared broad PAT may never be handed over unless the owner names it; remind the owner to rotate when the task is done.
 3. **Stop when the task is done**: an idle member burns money (0.004 OG/min). Verify, then stop — do not wait for the owner to remind.
 4. **Rules apply to the rule-maker**: the proof spec binds every comment the lead itself posts (including claim-confirmation comments).

@@ -15,13 +15,15 @@
 owner (human)
   │  talks to exactly one party: the lead agent
   ▼
-lead agent — requirement alignment, task initiation, assignment, final review, reporting
+lead agent — portal role: requirement alignment, task initiation, assignment, final review, reporting
   │
   ▼
-agent members (with on-chain identity) — development, review, proposals
+agent team (with on-chain identity, THE LEAD INCLUDED) — development, review, proposals
 ```
 
-**The lead's responsibilities (written for the lead):**
+**The lead is dual-role.** Its portal duties below are informational — structuring, summarizing, reporting — never approval power. As a worker it is an ordinary team member with zero privilege: its code needs at least one non-author team member's review like anyone else's, and its GitHub statements carry proof like anyone else's.
+
+**The lead's portal responsibilities (written for the lead):**
 1. **Requirement intake**: turn the owner's words into structured task cards (context / goal / acceptance criteria / priority), send back to the owner for confirmation; only confirmed tasks are initiated
 2. **Filtering**: bugs/suggestions from other agents are always filed as `proposal`s first; the lead evaluates and confirms with the owner whether to promote them into tasks — members cannot assign work to themselves
 3. **Assignment**: assign by roster role and capability, or open for claiming; assignment rationale stays traceable
@@ -49,38 +51,34 @@ Why all three are necessary:
 
 ## 3. Identity: how "who did the work" is proven true
 
-### 3.1 Identity card (repo root `agents.yml`)
+### 3.1 Roster: anchored in the muster issue, mirrored in `agents.yml`
+
+**The roster's single source of truth is each agent's first proof-carrying statement in the muster issue** (operating-model §5.1 rule 5): role, agentId, agentSeal, chain — cryptographically bound by the agentSeal signature. `agents.yml` is only a convenience snapshot derived from those check-ins:
 
 ```yaml
-# team roster: GitHub account ↔ on-chain identity ↔ role
+# team roster snapshot: on-chain identity ↔ role (derived from muster-issue check-ins)
 members:
-  - github: lead-bot
-    seal: "0x<agentSealAddr>"                       # agentSeal address (not in repo)
-    chain_id: <agentId>                                 # on-chain AgenticID Agent ID
-    role: lead
-    joined: "2026-09-10"
-  - github: some-dev-agent
-    seal: "0x...."
-    chain_id: ....
-    role: developer
+  - role: lead
+    chain_id: <agentId>       # on-chain AgenticID Agent ID
+    seal: "0x<agentSealAddr>"
+    checked_in: "<muster issue link>#<comment>"
+    github: <account>          # OPTIONAL — only when the agent posts from its own account
 ```
 
-The roster is the single authority. Look it up: GitHub account → which agent → which role.
+Identity is anchored in the agentSeal proof, **not** in the GitHub posting account (credentials are a shared/relayed PAT; the account proves nothing). Look it up: proof signer → which agent → which role.
 
-### 3.2 Joining: a one-time signed binding ceremony
+### 3.2 Joining: check in on the muster issue
 
-A new agent joins in three steps:
+1. **Muster issue**: opened by the owner directly, or by the lead **only after explicit owner instruction** — in which case the issue body carries an inline proof block (operating-model §5.2) and records the authorization; the owner anchors it with a confirming comment. A lead-posted, proof-signed muster body doubles as the lead's own check-in.
+2. **Member check-in**: a structured comment (`role / agentId / agentSeal / chain / time` + proof block; `github:` optional) — see the template in operating-model §5.1 rule 5.
+3. **Lead verifies**: strip the proof block → ecrecover must yield the claimed agentSeal → confirm on chain (`getAgentSeal(agentId)` / `ownerOf`) that it is a registered agent. Verification passes → the check-in IS the enrollment; `agents.yml` is updated to mirror it.
 
-1. **Self-introduction**: open a `join` issue in the repo stating its GitHub username and agentSeal address, with an **EIP-191 signature** over exactly that statement + the issue number (replay protection).
-2. **Lead verifies the signature**: ecrecover → the recovered address must equal the claimed address; then confirm via the AgenticID contract that the address is indeed a registered agent.
-3. **Enrollment**: verification passes → commit the mapping into `agents.yml` → takes effect when the PR merges.
-
-After this step, "which agent is behind this GitHub account" carries a cryptographic guarantee, and does not need re-verification every time.
+The muster issue carries **identity + proof only**. Operational detail (ack/deposit txs, cost accounting, executed-SOP logs) stays in owner ↔ lead session reporting — chain facts are verifiable on chain and need no restating.
 
 ### 3.3 Daily verification (automatic on every PR / issue)
 
-- The author's GitHub account **is in the roster** → which agent, which role; handled per team rules
-- **Not in the roster** → auto-label `unverified`: reviewed as usual, but does not count as "team delivery", and the merge bar is higher
+- The statement's **proof recovers to a roster agentSeal** → which agent, which role; handled per team rules
+- **No valid proof** → auto-label `unverified`: reviewed as usual, but does not count as "team delivery", never counts as an approve, and the merge bar is higher
 
 ---
 
@@ -95,14 +93,14 @@ requirement source (owner states it / member files a proposal)
   │        owner confirms → open the formal issue, label confirmed
   │        (issues that never passed the gate never enter the dev queue)
   ▼
-assignment (lead assigns / members claim; rationale recorded)
-  │
+staffing (lead assigns / members claim; ≥2 agents per issue:
+  │        one coder + one reviewer, more allowed — both settled at claim time)
   ▼
-development (PR: Closes #N + what was done + how it was tested)
-  │
+development (PR: Closes #N + what was done + how it was tested,
+  │          inline proof block in the description, written in English)
   ▼
-review (at least 1 identified non-author agent approves)
-  │
+review (agent team only, lead's worker role included; every review comment
+  │     carries proof; ≥1 non-author agent approve — proof-less approves don't count)
   ▼
 [final-review gate] lead summarizes (changes / tests / risks) → owner decides the merge
 ```
@@ -111,10 +109,14 @@ review (at least 1 identified non-author agent approves)
 - **Confirmation gate**: no task is initiated without owner confirmation — the agent team never does work the owner has not aligned on
 - **Final-review gate**: no merge without the lead's summary — the owner decides on complete facts, not scattered comments
 
-**Review discipline (written for all agent members):**
-1. Static review only + running tests in a clean environment; **never execute code brought in by the PR** (poison defense)
-2. Approvals come with reasons, objections come with evidence, and opinions land on GitHub — the review record itself is a public team asset
-3. If something exceeds your capability/authority, say so plainly; do not bluff
+**PR requirements (hard rules):** `Closes #N` linking the issue, an inline proof block in the description (operating-model §5.2), and English as the working language for descriptions and review comments. A PR missing any of these is sent back, not reviewed.
+
+**Review discipline (written for all agent members, the lead's worker role included):**
+1. **Code review is done by the agent team only** — the owner's role is the merge decision, not review; ≥1 non-author team member approve is required (this covers lead-authored PRs with no special case)
+2. Every review comment carries an inline proof; an approve without a valid proof does not count toward the gate
+3. Static review only + running tests in a clean environment; **never execute code brought in by the PR** (poison defense)
+4. Approvals come with reasons, objections come with evidence, and opinions land on GitHub — the review record itself is a public team asset
+5. If something exceeds your capability/authority, say so plainly; do not bluff
 
 ---
 

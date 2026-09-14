@@ -5,14 +5,14 @@ description: Operate 0G AgenticID agent teams from the sealed sandbox as team le
 
 # AgenticID Team Ops (lead side)
 
-Operating a 0G AgenticID agent team from this sealed sandbox. I am the lead; my agentSeal (env AGENT_SEAL) is the treasury and the on-chain owner of every member. Verified live end-to-end on testnet 2026-09-14 (two-person team: lead agentId 409 + member agentId 410).
+Operating a 0G AgenticID agent team from this sealed sandbox. I am the lead; my agentSeal (env AGENT_SEAL) is the treasury and the on-chain owner of every member.
 
 ## Environment facts (testnet — this sandbox's chain)
 
 - Attestor: https://agenticid.0g.ai — GET /config is the source of truth for ALL contract addresses and framework images; addresses drift across redeployments, never trust hardcoded ones.
 - RPC: https://evmrpc-testnet.0g.ai, chain id 16602.
 - Repo toolchain: 0gfoundation/0g-agentic-team (private; PAT at ~/.config/gh/token, 600) — ops scripts under scripts/team-ops/.
-- SDK source: 0gfoundation/0g-agentic-id, sdk/typescript — the npm-published version lags main; when the repo wants an unreleased version, build locally from the cloned source (owner directive 2026-09-14: local build is the default for pre-release).
+- SDK source: 0gfoundation/0g-agentic-id, sdk/typescript — the npm-published version lags main; when the repo wants an unreleased version, build locally from the cloned source (local build is the default for pre-release).
 - The repo clones under /root are CONTAINER-LOCAL — lost on container rebuild. Chain-persistent copies of the ops scripts live in this skill's templates/.
 
 ## Toolchain setup (fresh container or first use)
@@ -20,12 +20,12 @@ Operating a 0G AgenticID agent team from this sealed sandbox. I am the lead; my 
 1. Clone both repos (team repo needs the PAT — see sealed-sandbox-tooling for token-by-file usage).
 2. Build the SDK: cd /root/0g-agentic-id/sdk/typescript && npm install --no-audit --no-fund && npm run build
 3. Wire into team-ops as a file dependency: cd /root/0g-agentic-team/scripts/team-ops && npm install --no-audit --no-fund "../../../0g-agentic-id/sdk/typescript"
-4. Patch team-init.js getClient() for a net switch — the repo defaults MAINNET, wrong for this sandbox. Add: const net = process.env.AGENTICID_NET || "testnet"; pick { attestor: "https://agenticid.0g.ai", chain: ZERO_G_TESTNET } vs mainnet pair; import ZERO_G_TESTNET in the require. (Hardcoded-mainnet issue filed as review comment on PR #2, 2026-09-14.)
+4. Patch team-init.js getClient() for a net switch — the repo defaults MAINNET, wrong for this sandbox. Add: const net = process.env.AGENTICID_NET || "testnet"; pick { attestor: "https://agenticid.0g.ai", chain: ZERO_G_TESTNET } vs mainnet pair; import ZERO_G_TESTNET in the require.
 5. Self-check: node team-init.js — sealAccount() bridges the TEE sign socket automatically ($SEAL_SIGN_SOCK + $AGENT_SEAL); prints ackStatus, provider balance, deployments.
 
 Node itself is a /root tarball install if missing (see sealed-sandbox-tooling).
 
-## Member onboard SOP (verified order)
+## Member onboard SOP
 
 1. node team-init.js — health check.
 2. node do-ack.js — one-time trust-root ack (on-chain tx, gas). The appIds resolve from attestor /config.
@@ -36,10 +36,10 @@ Node itself is a /root tarball install if missing (see sealed-sandbox-tooling).
 7. Send task card #0 (onboarding check-in): node chat-member.js <agentId> @docs/seeds/task0-card.md — use chatStream (SSE incremental), NOT chat() — long silent turns get cut by the ~300s gateway timeout. Card = 6 self-check questions against the persona seed; a healthy member answers from its standing protocol and honestly flags gaps instead of inventing.
 8. Verify the member's public endpoint: curl https://<sandbox>.art.0g.ai/hello — must show the member's agentSeal and owner == treasury.
 9. node stop-member.js <sealId> <sandboxId> — STOP WHEN THE TASK IS DONE. An idle member burns 0.004 OG/min. Identity + harness are fully retained; start() resumes in seconds.
-10. Record the identity map (agentId / agentSeal / sealId / sandboxId / url) in MEMORY. Roster principle: real identities NEVER enter the repo — agents.yml holds role labels only.
-11. Commit and push what the session produced (ops scripts, seeds, patches) before closing out — 2026-09-14: 7 files sat untracked the morning after onboard. Push the CURRENT branch (`git branch --show-current`; this repo works on lead/init), and if `gh`/credential helper is gone, `git push https://<user>:$(cat ~/.config/gh/token)@github.com/<org>/<repo>.git <branch>`.
+10. The member checks in on the muster issue (structured comment: role / agentId / agentSeal / chain / time + proof block — operating-model §5.1 rule 5); that proof-carrying check-in IS the roster entry, mirrored into agents.yml. Record the operational map (sealId / sandboxId / url) in MEMORY — those are runtime handles, not identity, and stay out of the repo.
+11. Commit and push what the session produced (ops scripts, seeds, patches) before closing out — untracked files are unfinished work. Push the CURRENT branch (`git branch --show-current`; this repo works on lead/init), and if `gh`/credential helper is gone, `git push https://<user>:$(cat ~/.config/gh/token)@github.com/<org>/<repo>.git <branch>`.
 
-## Pitfalls (all hit live)
+## Pitfalls
 
 - Repo scripts default mainnet; this sandbox is testnet → ackStatus forever-missing, wrong chain. Apply the AGENTICID_NET patch before anything else.
 - SDK returns BigInt everywhere: JSON.stringify without a replacer throws "Do not know how to serialize a BigInt". Always: JSON.stringify(x, (k,v) => typeof v === "bigint" ? v.toString() : v).
@@ -47,18 +47,17 @@ Node itself is a /root tarball install if missing (see sealed-sandbox-tooling).
 - start() without apiKey → container boots but cannot call its model. The key rides an encrypted envelope; the attestor never stores it; it must be re-supplied on reset()/retry() too.
 - Never re-run spend ops (deploy/deposit/ack) to "verify": each re-run costs gas, and deploy re-mints orphans. Verify write ops by their on-chain receipts; re-run only read ops.
 - Chat dispatch: split big task cards into ≤5-minute cards; after a cut, send a continuation card ("first N steps done, do only the rest") — member-side variables survive across turns.
-- **viem verifyMessage is ASYNC** — an un-awaited call returns a truthy Promise and "verifies" ANYTHING. Always `await verifyMessage(...)` and make the enclosing function async. This silently passed a fake happy-path test; the tamper test is what exposed it (loopback lesson 2026-09-14).
-- **Proof-block byte extraction**: the body is the lines strictly before `--- proof ---` with ALL trailing blank lines stripped (`replace(/\n+$/, "")`) — the visual blank separator line must not enter the signed bytes. Same bug class as §5.2 v1.2(a) (trailing newline, 223 vs 222 bytes); it broke the happy path while tamper detection still passed, so test BOTH directions.
+- **viem verifyMessage is ASYNC** — an un-awaited call returns a truthy Promise and "verifies" ANYTHING. Always `await verifyMessage(...)` and make the enclosing function async. An un-awaited call passes happy-path tests silently; only a tamper test exposes it.
+- **Proof-block byte extraction**: the body is the lines strictly before `--- proof ---` with ALL trailing blank lines stripped (`replace(/\n+$/, "")`) — the visual blank separator line must not enter the signed bytes. A trailing-newline mismatch broke the happy path while tamper detection still passed, so test BOTH directions.
 - The persona is a ONE-SHOT seed, immutable for the member's life. Finalize the onboarding protocol BEFORE deploy (template docs/onboarding-persona.md: fill → lead final review → owner confirmation → deploy). "Deploy first, patch later" is rejected outright.
 
 ## Message proofs (operating-model §5.2 — every agent statement on GitHub)
 
-Agent-drafted GitHub content needs cryptographic attribution (shared PAT = impersonable; only agentSeal signatures attribute):
+Agent-drafted GitHub content needs cryptographic attribution (shared/relayed PAT = impersonable; only agentSeal signatures attribute). One path, no exceptions:
 
-- **Pre-post checklist (control added 2026-09-14)**: before ANY GitHub write (comment / issue body / PR), re-read this section in the same turn and pick a path — sign-on-post for agent-posted, v1.2(a) attestation for owner-relay. A rule sitting in this skill does not apply itself: the onboard report went out bare via owner PAT while §5.2 had been in this skill for 3 days — an execution miss, not a doc gap. Bare content already posted is recoverable: run the retro v1.2(a) attestation promptly and self-verify.
-- **Sign-on-post (v1.1)**: when posting a comment as the agent, append a proof block — strip-proof, personal_sign(the body itself) via sign socket, then `--- proof ---\nsigner: <seal> (agentId <n>)\nsignature: 0x…`. Body itself is signed; what you see is what you sign.
-- **Owner-relay content (posted via owner's PAT)**: attribution asserted by a separate attestation comment (v1.2(a)): fetch the target's stored bytes from GitHub → sha256(stored body, UTF-8, verbatim) → sign a one-line binding message (`<target id> | sha256 <hash> | signer <seal> agentId <n> | chain <id> | drafted and posted-by-relay <ts>`) → post attestation with verification path → self-verify end-to-end. The hash MUST be computed over the fetched-back stored bytes, never the local draft (§5.2 v1.2(a) erratum: a live proof died this way).
-- **Self-verify extraction rule (byte-precise, hit live 2026-09-14)**: message = lines strictly between `--- signed message ---` and the `signature: ` line, joined with LF, NO trailing newline. Including the trailing newline before `signature:` breaks ecrecover (223 vs 222 bytes). State the canonical form in the attestation itself.
+- **Sign-on-post, inline, everywhere**: every agent statement — comment, issue body, PR description, review body — carries a proof block appended at posting time: personal_sign(the body itself, proof block stripped) via sign socket, then `--- proof ---\nsigner: <seal> (agentId <n>)\nsignature: 0x…`. Body itself is signed; what you see is what you sign. Owner-relayed content included — who presses the button is irrelevant, the proof travels inside the body.
+- **PR descriptions and review comments are mandatory carriers**: an approve without a valid proof does not count toward the merge gate. Both are written in English.
+- **Pre-post checklist**: before ANY GitHub write, confirm in the same turn that the body is final, the proof block is appended, and a post-fetch self-verify (strip → ecrecover against the stored bytes) comes back green — it is not "posted" until it is green.
 - Sovereignty: sign only content you drafted yourself; owner-relay means the owner pressed the button, not that they drafted the bytes.
 - Tool: verify-proof.js <sealAddr> <msgFile> <sig> (viem verifyMessage, EIP-191).
 
@@ -72,7 +71,7 @@ Agent-drafted GitHub content needs cryptographic attribution (shared PAT = imper
 
 Audit against the plan of record (docs/collab-plan.md — roadmap §8 + owner-decision list §9), never from memory:
 
-1. Local repo: `git status -sb` + `git stash list` — uncommitted/untracked files are unfinished work (2026-09-14: the testnet patch + 6 ops scripts sat unpushed the morning after the onboard session).
+1. Local repo: `git status -sb` + `git stash list` — uncommitted/untracked files are unfinished work.
 2. Remote repo: issues + PRs via REST (token by file) — open/closed state, the last report's claims.
 3. Chain/attestor: member phase + prepaid balance — read-only scripts, safe to re-run live.
 4. Member liveness: healthz / attestor — "no IP address found. Is the Sandbox started?" means the member is STOPPED (hibernated per cost discipline), NOT crashed. Don't debug it; start-member resumes it.
@@ -80,37 +79,33 @@ Audit against the plan of record (docs/collab-plan.md — roadmap §8 + owner-de
 6. Deliver: prioritized gaps + recommended order + explicit owner-must-decide items (e.g. merge authority §9.3). Separate true gaps from deliberate state — a hibernated member is compliance, not a gap.
 7. If session_search returns 0 results, audit from live state (git / chain / attestor / cron), not from memory — history may be gone (container-local), state on chain and GitHub is not.
 
-Worked example: references/gap-audit-2026-09-14.md.
+## Language discipline
 
-## Language discipline (owner directive 2026-09-14)
+All repo content, skill bodies, and reference files are ENGLISH ONLY — no Chinese anywhere I author, including quoted owner words (paraphrase instead). Sweep check: `grep -rnP '[\x{4e00}-\x{9fff}]' <dirs>` (terminal grep — search_files can miss hits in cloned repos). Framework-bundled third-party skills with Chinese (baoyu-infographic, yuanbao) are not mine to touch.
 
-All repo content, skill bodies, and reference files are ENGLISH ONLY — no Chinese anywhere I author, including quoted owner words (paraphrase instead). The team repo had a dedicated translate-to-English commit (2fc5fbe, 09-13); after it, Chinese crept back into 5 skill/reference lines within a day. Sweep check: `grep -rnP '[\x{4e00}-\x{9fff}]' <dirs>` (terminal grep — search_files can miss hits in cloned repos; see memory note). Framework-bundled third-party skills with Chinese (baoyu-infographic, yuanbao) are not mine to touch.
+## Skill distribution to members
 
-## Skill distribution to members (RESOLVED 2026-09-14, protocol v1.0; attribution model updated v1.1)
+Members are independent Hermes agents that load skills the same way the lead does, but their skill copies are baked at their container build. The **authoritative skill copy lives in the team repo** at `docs/skills/agenticid-team-ops/` (SKILL.md + templates + references); the lead's personal copy syncs from it (repo wins on divergence). The team protocol itself is `docs/team-protocol.md` (attribution model §2, skill access §1, issue modes §3, PR discipline §4). On every member start or material skill change, the lead sends a protocol-update card over chat; the member persists what it needs into its own chain-tracked harness (`~/.hermes/skills/`, `~/.hermes/memories/`).
 
-Members are independent Hermes agents that load skills the same way the lead does, but their skill copies are baked at their container build. Resolution (owner directive, same session): the **authoritative skill copy lives in the team repo** at `docs/skills/agenticid-team-ops/` (SKILL.md + templates + references); the lead's personal copy syncs from it (repo wins on divergence). The team protocol itself is `docs/team-protocol.md` (attribution model §2, skill access §1, issue modes §3, PR discipline §4). On every member start or material skill change, the lead sends a protocol-update card over chat; the member persists what it needs into its own chain-tracked harness (`~/.hermes/skills/`, `~/.hermes/memories/`).
-
-## Attribution model (protocol v1.1, live-tested 2026-09-14 — replaces in-chat proof blocks)
+## Attribution model (chat vs /api/*)
 
 Platform law (enforced by the sealed proxy, `sealed/internal/proxy/proxy.go` routing precedence — not convention):
 
 - **Chat (`/v1/`, framework route) is NEVER signed.** It is the owner↔agent steering channel; signing it would let the owner mint self-dealt reputation ServeProofs. Chat = authenticated (bearer) private coordination, no attribution.
 - **Agent-registered `/api/*` services are ALWAYS signed** with `X-Agent-Proof` (EIP-191 over the ServeProof envelope: method, uri, body hash, status, deadline). This is the ONLY attributable channel: verify with `ag.reputation.verifyProof(proof)` → checks signer == on-chain `getAgentSeal(agentId)`, deadline, dataHashes on chain.
 - Workflow: coordination over chat (unsigned OK); attribution claims = call the member's `/api/*` service via `client.fetchWithProof(path)`, parse, verify on chain. Chat text alone is hearsay.
-- Members refused per-message signing on demand (correct sovereignty behavior — "I sign bytes I authored"). The member-proposed design: X-Agent-Proof channel for statements + self-initiated sign-socket manifests for off-box evidence. Live-verified: backend-1's `GET /api/statement` verifies `{ok:true, signerMatches:true, notExpired:true, dataOnChain:true}`.
+- Members sign only bytes they authored (sovereignty): statements go over the X-Agent-Proof channel; off-box evidence (e.g. GitHub deliverables) rides self-initiated sign-socket manifests. Live-verified: backend-1's `GET /api/statement` verifies `{ok:true, signerMatches:true, notExpired:true, dataOnChain:true}`.
 - Tooling: templates/verify-chat-proof.js (chat-header check, shows chat unsigned BY DESIGN), templates/chat-watch.js (ping + /activity SSE watch), chat-member.js (send signed courtesy + verify-received verdicts).
 
-## Member session hygiene (live incident 2026-09-14)
+## Member session hygiene
 
-The member's `/v1/` chat is a STATEFUL server-side session ("only the last user message is read, turns are serialized"). A session polluted with a large protocol card + repeated failed pongs made glm-5.3 think 237-281s per turn and emit textLen=0 every turn (stream ends with no output). Diagnosis: activity SSE (chat-watch.js) shows 100+ `thinking` events, zero content; bridge logs (chat-logs.js) show `message_end: role=assistant textLen=0`. Recovery: stop + start the member container (session state is container-local, not chain-tracked) → fresh session → bare ping answers PONG in seconds. Rules: send protocol cards ONE RULE AT A TIME (small steps); if a member goes textLen=0, suspect session pollution and recycle the container before blaming the model or the bridge.
+The member's `/v1/` chat is a STATEFUL server-side session ("only the last user message is read, turns are serialized"). A session polluted with a large protocol card + repeated failed pings can drive the model into minutes-long thinking with textLen=0 every turn (stream ends with no output). Diagnosis: activity SSE (chat-watch.js) shows many `thinking` events, zero content; bridge logs (chat-logs.js) show `message_end: role=assistant textLen=0`. Recovery: stop + start the member container (session state is container-local, not chain-tracked) → fresh session. Rules: send protocol cards ONE RULE AT A TIME (small steps); if a member goes textLen=0, suspect session pollution and recycle the container before blaming the model or the bridge.
 
 
 ## Support files
 
 - templates/deploy-onboard.js, verify-member.js, start-member.js, stop-member.js, chat-member.js — the five parameterized ops scripts (copy into scripts/team-ops/ after a repo re-clone; they require ./team-init + the SDK install).
 - templates/task0-card.md — the onboarding check-in card.
-- references/onboard-evidence-2026-09-14.md — full session evidence: tx hashes, timings, member reply characteristics, two bugs found and fixed.
-- references/retro-attestation-2026-09-14.md — the v1.2(a) retro flow worked example: retro-attesting owner-relayed GitHub content, the byte-extraction bug self-verify caught, gh-less curl/PAT fallbacks.
 - references/pr-review-comment.md — posting an anchored review comment on the team repo (diff position math, head SHA, token-by-file, uv-run-python payload build).
 
 ## Red lines
