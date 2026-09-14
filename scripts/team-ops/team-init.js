@@ -4,14 +4,18 @@
 // The hand-rolled bridge (tee-account.js) is kept for reference only.
 delete globalThis.btoa; // SDK 0.1.4: Node's btoa chokes on CJK seeds — take the Buffer branch
 
-const { AgenticID, ZERO_G_MAINNET } = require("@0gfoundation/0g-agenticid-sdk");
+const { AgenticID, ZERO_G_MAINNET, ZERO_G_TESTNET } = require("@0gfoundation/0g-agenticid-sdk");
 const { sealAccount } = require("@0gfoundation/0g-agenticid-sdk/seal");
 
 async function getClient() {
+  const net = process.env.AGENTICID_NET || "testnet";  // this sandbox runs on testnet (attestor agenticid.0g.ai, chain 16602); mainnet scripts default overridden
+  const netCfg = net === "mainnet"
+    ? { attestor: "https://agenticid-mainnet.0g.ai", chain: ZERO_G_MAINNET }
+    : { attestor: "https://agenticid.0g.ai", chain: ZERO_G_TESTNET };
   const account = await sealAccount();  // $SEAL_SIGN_SOCK + $AGENT_SEAL auto-detected
-  const ag = await AgenticID.fromAttestor("https://agenticid-mainnet.0g.ai", {
+  const ag = await AgenticID.fromAttestor(netCfg.attestor, {
     account,
-    chain: ZERO_G_MAINNET,
+    chain: netCfg.chain,
   });
   return { ag, account };
 }
@@ -31,6 +35,6 @@ if (require.main === module) {
     console.log("provider available:", eff.availableWei, "wei");
 
     const deps = await ag.agent.listMyDeployments();
-    console.log("deployments:", deps.length ? JSON.stringify(deps).slice(0, 300) : "(none)");
+    console.log("deployments:", deps.length ? JSON.stringify(deps, (k, v) => typeof v === "bigint" ? v.toString() : v).slice(0, 300) : "(none)");
   })().catch(e => { console.error("ERR:", e.message); process.exit(1); });
 }
